@@ -1,0 +1,11 @@
+#!/bin/bash
+if [[ "$OSTYPE" =~ darwin ]]; then
+  exec vlp-macos "$@"
+elif [ "$OSTYPE" = "cygwin" ]; then
+  exec vlp-cygwin "$@"
+else
+  if [ -z "$DISPLAY" ]; then
+    export DISPLAY=:0.0
+  fi
+  exec vlp-linux "$@"
+fi

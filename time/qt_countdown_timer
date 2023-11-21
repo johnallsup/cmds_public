@@ -1,0 +1,260 @@
+#!/usr/bin/env python
+import sys
+import os
+import random
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
+from PySide6.QtNetwork import *
+import time
+from threading import Thread
+from datetime import datetime
+from setproctitle import setproctitle
+from subprocess import run, PIPE
+
+# Training timer intermixing social glamour vis and naughty america vids
+
+setproctitle(sys.argv[0].split("/")[-1])
+
+should_quit = False
+
+def parse_time(x):
+  a = x.split(":")
+  if len(a) < 2 or len(a) > 3:
+    raise ValueError("Time should be in the format hh:mm or hh:mm:ss")
+  if len(a) == 2:
+    h,m = map(int,a)
+    s = 0
+  else:
+    h,m,s = map(int,a)
+  return (h,m,s)
+
+def parse_rel_time(x):
+  a = x.split(":")
+  if len(a) < 1 or len(a) > 3:
+    raise ValueError("Time should be in the format ss or mm:ss or hh:mm:ss")
+  if len(a) == 1:
+    s = int(a[0])
+  elif len(a) == 2:
+    m,s = map(int,a)
+    h = 0
+  else:
+    h,m,s = map(int,a)
+  return (h,m,s)
+
+def compute_secs_until(x):
+  h,m,s = parse_time(x)
+  now = datetime.now()
+  h1 = now.hour
+  m1 = now.minute
+  s1 = now.second
+  secs = 3600*h+60*m+s
+  secs1 = 3600*h1+60*m1+s1
+  dt = secs - secs1
+  if dt < 0:
+    dt += 24*3600
+  return dt
+
+def fmtime(x):
+  h,s = divmod(x,3600)
+  m,s = divmod(s,60)
+  return f"{h:02d}:{m:02d}:{s:02d}"
+
+def clamp(x,a,b):
+  return max(min(x,b),a)
+
+def helpexit(n):
+  print(f"{sys.argv[0]} t0")
+  print("MAXWAIT sets longest countdown")
+  exit(n)
+
+class TimeDisplay(QWidget):
+  def __init__(self):
+    super().__init__()
+
+    # calculate window size and position
+    margin = 100
+    primary_screen = QGuiApplication.primaryScreen()
+    geom = primary_screen.geometry()
+    scr_height = geom.height()
+    scr_width = geom.width()
+
+    x = margin
+    y = margin
+    w = scr_width-2*margin
+    h = scr_height-2*margin
+    self.w = w
+    self.h = h
+
+    # size and position – possibly necessary to recompute, resize and move depending on hud contents
+    self.resize(w,h)
+    self.move(x,y)
+    #self.resize(600,600)
+
+    # attributes for display
+    self.fontname = "Optima"
+    self.fontsize = 200
+    self.font = QFont(self.fontname,self.fontsize)
+    self.color = QColor(100,255,100)
+    self.ocolor = Qt.black
+    self.pen = QPen(self.ocolor,16)
+
+    self.content = "Countdown"
+
+    # window attributes
+    self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+    self.setAttribute(Qt.WA_TranslucentBackground)
+    
+  def mousePressEvent(self,e):
+    global should_quit
+    should_quit = True
+    QApplication.instance().quit()
+
+  def setColor(self,r,g,b):
+    self.color = QColor(r,g,b)
+
+  def setContent(self,x):
+    self.content = x
+    self.update()
+
+  def paintEvent(self,event):
+    with QPainter(self) as p:
+      text = self.content
+
+      # centre the text on the screen
+      metrics = QFontMetrics(self.font)
+      tw = metrics.horizontalAdvance(text)
+      x = (self.w-tw)/2
+      h = metrics.height()
+      sh = self.h
+      dh = (sh-h)/2
+      y = dh+h
+
+      path = QPainterPath()
+      path.addText(x,y,self.font,str(text))
+
+      # draw twice so that the black outline is _behind_ the fill
+      p.setPen(self.pen)
+      p.drawPath(path)
+      p.setBrush(self.color)
+      p.setPen(Qt.NoPen)
+      p.drawPath(path)
+
+class TimeManager(QObject):
+  def handleUdp(self):
+    self.app.quit()
+
+  def __init__(self,tcmds):
+    """tcmds is an array of [t,func] which will be sorted.
+    timer will then countdown to each t and then dispatch in
+    a new thread."""
+    super().__init__()
+
+    self.app = QApplication.instance()
+    self.tcmds = list(sorted(tcmds,key=lambda t: t[0]))
+
+    # so we can kill via sending UDP to 2000
+    self.udpSocket = QUdpSocket()
+    self.udpSocket.readyRead.connect(self.handleUdp)
+    try:
+      if not self.udpSocket.bind(QHostAddress.Any,2000):
+        raise Exception("Address bind failed")
+    except Exception:
+      print(f"Failed to bind UDP port 2000")
+      exit(1)
+      app.quit()
+
+    self.timer = QTimer(self)
+    self.timer.setInterval(1000)
+    self.timer.timeout.connect(self.ping)
+
+    self.time_display = TimeDisplay()
+    self.func = None
+    self.next_t0()
+
+  def setColor(self,r,g,b):
+    return self.time_display.setColor(r,g,b)
+
+  def next_t0(self):
+    if self.func is not None:
+      self.dispatch(self.func)
+    if len(self.tcmds) == 0:
+      return self.app.quit()
+    t0,self.func = self.tcmds[0]
+    self.tcmds = self.tcmds[1:]
+    self.t0 = t0
+
+  def dispatch(self,func):
+    Thread(target=func).start()
+
+  def go(self):
+    self.ping()
+    self.time_display.show()
+    self.timer.start()
+
+  def ping(self):
+    global should_quit, hdd_keepalive_should_quit
+    try:
+      t = int(datetime.now().timestamp())
+      dt = self.t0 - t
+      if dt < 0:
+        return self.next_t0()
+      self.time_display.setContent(fmtime(dt))
+      if should_quit:
+        app = QApplication.instance()
+        app.quit()
+    except KeyboardInterrupt:
+      print("Keyboard Interrupt")
+      should_quit = True
+      hdd_keepalive_should_quit = True
+      self.app.quit()
+
+def main():
+  global should_quit, hdd_keepalive_should_quit
+  args = sys.argv[1:]
+  maxwait = os.getenv("MAXWAIT","0")
+  try:
+    mh,mm,ms = parse_time(maxwait)
+    maxwait = 3600+mh+60*mm+ms
+  except Exception as e:
+    print(f"Invalid maxwait {maxwait}, defaulting to 0")
+    maxwait = 0
+
+  if len(args) == 0:
+    print("helpexit")
+    helpexit(0)
+  try:
+    dt = compute_secs_until(args[0])
+    if maxwait != 0 and dt > maxwait:
+      print(f"Wait too long: {dt} > {maxwait}")
+      exit()
+
+    # probably not the best way of doing it
+    t = int(datetime.now().timestamp())
+    t0 = t + dt
+  except Exception as e:
+    print(f"Exception {e} parsing command line and env")
+    helpexit(5)
+    
+  def done():
+    global shoult_quit
+    should_quit = True
+    print("done")
+    time_manager.app.quit()
+
+  app = QApplication([])
+  now = datetime.now()
+  time_manager = TimeManager([(t0,done)])
+  time_manager.setColor(255,255,0)
+  time_manager.go()
+
+  try:
+    exit(app.exec())
+    should_quit = True
+  except KeyboardInterrupt:
+    print(f"Ctrl-C")
+    should_quit = True
+    app.quit()
+
+if __name__ == "__main__":
+  main()

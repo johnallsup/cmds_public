@@ -1,0 +1,11 @@
+#!/bin/bash
+A="$1"
+((s=A%60))
+((A /= 60))
+((m=A%60))
+((A /= 60))
+T=""
+if (( A > 0 )); then T="$T${A}h"; fi
+if (( m > 0 )); then T="$T${m}m"; fi
+if (( s > 0 )); then T="$T${s}s"; fi
+if [ -n "$T" ]; then echo "$T"; fi

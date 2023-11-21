@@ -1,0 +1,32 @@
+#!/usr/bin/env python
+from setproctitle import setproctitle # pip install setproctitle
+from subprocess import run
+from pgrep import pgrep # pip install pgrep
+from time import sleep
+from sys import argv
+from datetime import datetime
+def now(fmt="%c"):
+  return datetime.now().strftime(fmt)
+try:
+  me, targetname, *cmd = argv
+except ValueError:
+  print(f"{argv[0]} <target_name> <cmd> [<args> ...]")
+  exit(1)
+def truncname(x):
+  if len(x) > 15:
+    x = x[:15]
+    print(f"Truncating proc name to '{x}'")
+  return x
+targetnames = [truncname(x) for x in targetname.split("+")]
+def pgreps(xs):
+  return sum([pgrep(x) for x in xs],[])
+while m := pgreps(targetnames):
+  sleep(1)
+  print(f"Waiting for {len(m)} process{'es' if len(m)>1 else ''}... {now()}",end="\r")
+print()
+if len(cmd) > 0:
+  exit(run(cmd).returncode)
+else:
+  exit(0)
+
+

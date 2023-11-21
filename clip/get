@@ -1,0 +1,8 @@
+#!/bin/bash
+[ -d "$JSTORE" ] || JSTORE="$HOME/.jstor"
+LOC="$1"
+[ -z "$LOC" ] && LOC="_"
+FLOC="$JSTORE/$LOC"
+[ ! -e "$FLOC" ] && { echo "Not found: $FLOC" >| /dev/stderr; exit 1; }
+#echo "LOC=$LOC FLOC=$FLOC"
+cat "$FLOC"  || { echo "Error reading: $FLOC" >| /dev/stderr; exit 1; }

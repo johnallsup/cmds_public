@@ -1,0 +1,23 @@
+histv() { shopt -s histverify; }
+nohistv() { shopt -u histverify; }
+histv
+shopt -s histappend
+
+
+# utility for putting markers in history
+setmark() { if [ -n "$1" ]; then export MARK="$1"; elif [ -n "$MARK" ]; then echo "Mark: $MARK"; else echo "No mark defined"; fi; }
+histmark() { 
+  if [ -n "$MARK" ]; then
+    history | awk "BEGIN { x = 0; } /===$MARK===/ { print \"Mark Found\n\"; x = 1; } { if( x == 1) print; }"
+  else
+    echo "No mark defined"
+  fi
+}
+mark() {
+  if [ -n "$1" ]; then setmark "$1"; fi
+  if [ -n "$MARK" ]; then
+    history -s "echo '===$MARK==='"
+  else
+    echo "No mark defined"
+  fi
+}

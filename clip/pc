@@ -1,0 +1,13 @@
+#!/bin/bash
+# copy to clipboard
+if [ -n "$WAYLAND_DISPLAY" ]; then
+  cat "$@" | wl-copy
+elif [ -n "$DISPLAY" ]; then # X11
+  cat "$@" | xsel -i -b
+elif [ -d "/Applications" ]; then # macos
+  cat "$@" | pbcopy
+elif [ -d "/cygdrive/c/cygwin64" ]; then # cygwin
+  cat "$@" > /dev/clipboard
+else
+  echo "Cannot copy as not gui" 1>&2 
+fi

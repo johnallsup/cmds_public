@@ -1,0 +1,50 @@
+#!/usr/bin/perl
+
+# perl script creator
+# first arg is command
+# subsequent args become import directives
+# then empty line
+# then if RUNVIM is set, run vim
+
+$cmd = shift @ARGV;
+if( -e "$cmd" ) {
+    print "$cmd already exists.";
+    exit 1;
+}
+$runvim = $ENV{RUNVIM};
+#print $cmd."\n";
+#print $runvim."\n";
+@out = ("#!/usr/bin/env py","");
+while($_ = shift @ARGV) {
+    last if ("$_" eq "--");
+    @a = split ":","$_",-1;
+    if(int(@a)==1) {
+        push @out, "import $a[0]";
+    } elsif(int(@a)==2) {
+        if($a[1]) {
+            push @out, "from $a[0] import $a[1]";
+        } else {
+            push @out, "from $a[0] import *";
+        }
+    } elsif(int(@a)==3) {
+        if($a[2]) {
+            push @out, "from $a[0] import $a[1] as $a[2]";
+        } else {
+            push @out, "from $a[0] import $a[1] as $a[1]"; # tpl for ren
+        }
+    } else {
+        print("Wtf! $_\n");
+    }
+}
+push @out, ("",@ARGV,"","");
+$out = join "\n", @out;
+#print $out;
+if(open F, ">$cmd") {
+    print F $out;
+    close F;
+}
+`chmod a+x '$cmd'`;
+if($runvim) {
+    exec "vim +star '$cmd' +$#out";
+}
+

@@ -1,0 +1,2 @@
+#!/usr/bin/perl
+for(@ARGV) { -e && exit 0; } exit 1;

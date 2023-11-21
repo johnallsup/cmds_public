@@ -1,0 +1,35 @@
+#!/bin/bash
+CC="${1//,/ }"
+if [ -z "$CC" ]; then
+  echo "shorthand for sudo systemctl"
+  echo "e(nable) d(isable) s(tart) S(top) r(eload) R(estart) and t for status"
+  exit 1
+fi
+shift
+if [ "$CC" = "l" -o "$CC" = "list" ]; then
+  if [ $# -gt 0 ]; then
+    args=()
+    for s; do
+      args+=(-e "$s")
+    done
+    systemctl | awk '{print $1}' | grep "${args[@]}"
+  else
+    systemctl | awk '{print $1}' | grep '\.service'
+  fi
+  exit
+fi
+I=0
+while ((I<${#CC})); do
+  C="${CC:I:1}"
+  ((I++))
+  case "$C" in
+    e) C=enable ;;
+    d) C=disable ;;
+    s) C=start ;;
+    S) C=stop ;;
+    r) C=reload ;;
+    R) C=restart ;;
+    t) C=status ;;
+  esac
+  sudo systemctl "$C" "$@"
+done

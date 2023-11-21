@@ -1,0 +1,19 @@
+#!/bin/zsh
+H="localhost"
+P="$1"
+A=()
+shift
+for s; do
+  if [ ! -f "$s" ]; then
+    echo "$s does not exist, skipping"
+    continue
+  fi
+  a="$(readlink -f "$s")"
+  if [ "$OSTYPE" = cygwin ]; then
+    a="/$(cygpath -w "$a" | tr '\\' '/' | sed -e 's@\\\\@/@g')"
+  fi
+  b="file://$a"
+  A+=("${A[@]}" "add $b")
+done
+echo tvlcmd "$H" "$P" "${A[@]}"
+tvlcmd "$H" "$P" "${A[@]}"

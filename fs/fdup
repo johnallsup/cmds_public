@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+import sys, os, os.path
+import hashlib
+from collections import defaultdict
+
+quick = False
+
+def doprint(*xs,**kw):
+  if "file" in kw:
+    f = kw['file']
+  else:
+    f = sys.stdout
+  print(*xs,**kw)
+  f.flush()
+
+def hash_first(filename,chunk_size=64*1024):
+  doprint(f"Hashing first {chunk_size} of {filename}")
+  with open(filename,"rb") as f:
+    bytes = f.read(chunk_size)
+    hash = hashlib.sha256(bytes).hexdigest()
+    return hash
+
+def hash_all(filename,chunk_size=1024*1024):
+  doprint(f"Hasing all of {filename}")
+  sz = os.path.getsize(filename)
+  x = 0
+  sha = hashlib.sha256()
+  i = 0
+  with open(filename,"rb") as f:
+    while byte_block := f.read(chunk_size):
+      doprint(".",end="")
+      sha.update(byte_block)
+      x += len(byte_block)
+      i += 1
+      if i >= 30:
+        pc = 100*(x/sz)
+        doprint(f" {pc:0.3f}%")
+        i = 0
+    doprint()
+    return sha.hexdigest()
+
+
+#roots = sys.argv[1:]
+roots = []
+for x in sys.argv[1:]:
+  if x == "-q":
+    quick = True
+  else:
+    roots.append(x)
+
+class T:
+  def __init__(self,t=10):
+    self.t = t
+  def __call__(self):
+    self.t -= 1
+    if self.t <= 0:
+      doprint(f"Exiting")
+      sys.exit(0)
+  
+# t = T(1000)
+
+# pass 1: compile by_size
+doprint("Finding files")
+by_size = defaultdict(list)
+for root in roots:
+  for rt, dirs, files in os.walk(root):
+    for f in files:
+      doprint(".",end="")
+      path = os.path.join(rt,f)
+      sz = os.path.getsize(path)
+      by_size[sz].append(path)
+doprint("Done finding files")
+
+candidates = []
+for sz,fs in by_size.items():
+  if len(fs) > 1:
+    candidates += fs
+doprint(f"{len(candidates)} candidates by size")
+if len(candidates) == 0:
+  exit(0)
+
+# pass 2: compile by_hash64k
+by_hash64k = defaultdict(list)
+for c in candidates:
+  h = hash_first(c,64*1024)
+  by_hash64k[h].append(c)
+candidates = []
+for h,fs in by_hash64k.items():
+  if len(fs) > 1:
+    candidates += fs
+doprint(f"{len(candidates)} candidates by hash 64k")
+if len(candidates) == 0:
+  exit(0)
+
+# pass 3: compilie by_hash1m
+by_hash1m = defaultdict(list)
+for c in candidates:
+  h = hash_first(c,1024*1024)
+  by_hash1m[h].append(c)
+candidates = []
+for h,fs in by_hash1m.items():
+  if len(fs) > 1:
+    candidates += fs
+doprint(f"{len(candidates)} candidates by hash 1M")
+if len(candidates) == 0:
+  exit(0)
+
+if quick:
+  dups = False
+  for h,fs in by_hash1m.items():
+    if len(fs) > 1:
+      if not dups:
+        dups = True
+        doprint(f"Dups:\n=====\n\n")
+      doprint(f"hash {h}:")
+      for f in fs:
+        doprint(f"  {f}")
+else:
+  # pass 4: compile by hashall
+  by_hashall = defaultdict(list)
+  dups = False
+  for c in candidates:
+    h = hash_all(c)
+    by_hashall[h].append(c)
+  for h,fs in by_hashall.items():
+    if len(fs) > 1:
+      if not dups:
+        dups = True
+        doprint(f"Dups:\n=====\n\n")
+      doprint(f"hash {h}:")
+      for f in fs:
+        doprint(f"  {f}")
+

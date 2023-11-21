@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# sleep with countdown
+A="$1"; shift
+((B=A))
+((I=0))
+while ((B>0)); do
+    if ((B>10)); then
+        echo -n "$B... ";
+        ((B = B - 10));
+        ((I++));
+        if (( I >= 8 )); then
+            I=0
+            echo
+        fi
+        sleep 10
+    else
+        echo "$B...";
+        sleep $B
+        B=0
+    fi
+done

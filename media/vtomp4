@@ -1,0 +1,5 @@
+#!/bin/bash
+I="$1"
+O="${I%.*}.mp4"
+if [ "$I" = "$O" ]; then echo Already mp4; exit 1; fi
+ffmpeg -i "$I" -strict -2 "$O"

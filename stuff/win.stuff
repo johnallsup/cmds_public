@@ -1,0 +1,16 @@
+DOWNLOADS="$USERPROFILE/Downloads"
+gd() {
+  cd "$DOWNLOADS"; 
+  for s; do
+    cd "$s" || return
+  done
+}
+.h() {
+  if [ -f "helpers.sh" ]; then
+    echo "Loading helpers.sh"
+    . helpers.sh
+  else
+    echo "No helpers.sh"
+    return 1
+  fi
+}

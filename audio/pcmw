@@ -1,0 +1,5 @@
+#!/bin/bash
+
+A="$1"
+B="${A%%.rawpcm}.wav"
+sox -t raw -r 48k -b 32 -e float "$A" "$B"

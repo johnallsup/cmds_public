@@ -1,0 +1,40 @@
+#!/usr/bin/env python
+from subprocess import run, PIPE, DEVNULL
+from glob import glob
+from icecream import ic; ic.configureOutput(includeContext=True)
+import sys
+import json
+import math
+
+def main():
+  args = sys.argv[1:]
+  try:
+    wavfn, loopfn, ofn = args
+  except Exception:
+    print(f"{sys.argv[0]} wavfn loopfn ofn")
+    exit(1)
+  loopdur = getdur(loopfn)
+  wavdur = getdur(wavfn)
+  nreq = math.ceil(wavdur/loopdur)
+  with open("catlist","wt") as f:
+    for n in range(nreq):
+      print(f"file '{loopfn}'",file=f)
+  run(["ffmpeg","-n","-f","concat","-i","catlist","-i",wavfn,"-b:a","160k","-shortest","-c:v","copy",ofn],stdin=DEVNULL)
+  print(ofn)
+
+def getdur(ifn):
+  m = run(["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format",ifn],stdin=DEVNULL,stdout=PIPE)
+  if m.returncode > 0:
+    print(f"#fail")
+    exit(1)
+  j = m.stdout.decode()
+  d = json.loads(j)
+  dur = float(d["format"]["duration"])
+  return dur
+
+def rrun(x,*xs,**kw):
+  ic(x)
+  exit()
+
+if __name__ == "__main__":
+  main()

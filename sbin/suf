@@ -1,0 +1,10 @@
+#!/bin/bash
+# su to the file's owner
+F="$1"
+shift
+if [ ! -e "$F" ]; then
+  echo "$F" does not exist
+  exit 1
+fi
+U="$(stat -c "%U" "$F")"
+sudo su "$U" "$@"

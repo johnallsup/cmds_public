@@ -1,0 +1,20 @@
+#!/bin/bash
+go() {
+local a o
+a="$1"
+a="${a%/}"
+o="${a}.flac"
+if [ -d "$a" -a ! -e "$o" ]; then
+  echo -n "$a..."
+  sox "$a"/*.aif "$o"
+  echo "done"
+else
+  if [ ! -d "$a" ]; then
+    echo "$a is not a directory"
+  fi
+  if [ -e "$o" ]; then
+    echo "$o already exists"
+  fi
+fi
+}
+for s; do go "$s"; done

@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+import os,os.path,sys,subprocess
+# from distutils.dir_util import mkpath,DistutilsFileError
+# import distutils
+import hashlib
+import socket
+from socket import gethostname
+
+if len(sys.argv) == 1:
+  print(f"miniserv option=value [option=value...]")
+  exit(0)
+
+# For searching for an unused socket
+def port_is_in_use(port: int) -> bool:
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('localhost', port)) == 0
+
+def getIp():
+    a = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+    a.connect(('192.168.2.1',0))
+    return a.getsockname()[0]
+
+def getCwdName():
+    return os.getcwd().split("/")[-1]
+
+def getopt(args):
+    "args are of the form name=value, or . to infer name from current directory name"
+    d = {}
+    for s in args:
+        if '=' in s:
+            i = s.index('=')
+            a = s[:i]
+            b = s[i+1:]
+            d[a]=b
+            print("{}: {}".format(a,b))
+        elif s == '.':
+            d['name'] = f"{gethostname()}_{getCwdName()}"
+    return d        
+
+#log_level=general,artwork,database,inotify,scanner,metadata,http,ssdp,tivo=warn
+def conf(**kw):
+    myip = getIp()
+    ipa = int(myip.split('.')[3])
+    defs = {'user':os.getenv('USER'),'mediadir':os.getcwd(),'port':None,'loglevel':'general','myip':ipa}
+    defs.update(kw)
+    if defs['port'] is None:
+      sha = hashlib.sha256()
+      sha.update(os.path.abspath(defs['mediadir']).encode("utf8"))
+      offs = int(sha.hexdigest()[:3],16)
+      port = 8200+offs
+      if port_is_in_use(port):
+        print(f"Port {port} is already in use, searching for an available port")
+        while port_is_in_use(port):
+          port += 1
+        print(f"Found port {port}")
+      defs['port'] = port
+    else:
+      defs['port'] = int(defs['port'])
+    if not 'name' in defs: 
+      defs['name'] = "minidlna-{user}-{port}".format(**defs)
+      if not 'var' in defs: 
+        defs['var'] = os.path.expanduser("~/.minidlna/{user}/serv-{name}".format(**defs))
+    if not 'var' in defs: defs['var']=os.path.expanduser("~/.minidlna/{user}/serv-{name}-{port}".format(**defs))
+    var=defs['var']
+    try:
+        os.makedirs(var,exist_ok=True)
+        os.makedirs(os.path.join(var,"db"),exist_ok=True)
+        os.makedirs(os.path.join(var,"log"),exist_ok=True)
+        pidfn = os.path.join(var,"pid")
+    except Exception as e:
+        print(f"Failed to create {var} -- {e}")
+        raise
+    confn = os.path.join(var,"minidlna.conf")
+    conf = '''
+user={user}
+media_dir={mediadir}
+db_dir={var}/db
+log_dir={var}/log
+log_level={loglevel}
+root_container=B
+#network_interface=
+#listening_ip=
+port={port}
+#presentation_url=/
+friendly_name={name}
+serial=68101981059{port:04d}
+uuid={myip:04d}-{port:04d}
+#model_name=Windows Media Connect compatible (MiniDLNA)
+#model_number=
+#inotify=yes
+album_art_names=Cover.jpg/cover.jpg/AlbumArtSmall.jpg/albumartsmall.jpg
+album_art_names=AlbumArt.jpg/albumart.jpg/Album.jpg/album.jpg
+album_art_names=Folder.jpg/folder.jpg/Thumb.jpg/thumb.jpg
+#strict_dlna=no
+#enable_tivo=no
+#notify_interval=895
+minissdpdsocket={var}/minissdpd.sock
+wide_links=yes
+'''.format(**defs)
+    with open(confn,"wt") as f:
+        print('Config in {}'.format(confn))
+        f.write(conf)
+    return (confn,pidfn)    
+
+confn,pidfn = conf(**getopt(sys.argv[1:]))
+subprocess.call(['/usr/sbin/minidlnad','-f',confn,'-P',pidfn])

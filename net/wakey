@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+import re, sys, subprocess
+from subprocess import run
+from datetime import datetime
+import os
+import shutil
+"""
+wakey machine [machine2 ...]
+"""
+args = sys.argv[1:]
+which_wakeonlan = shutil.which("wakeonlan")
+if which_wakeonlan is None:
+  host="pi3"
+  for s in args:
+    print(f"Waking {s} via {host}")
+    clipy = shutil.which("cli.py")
+    run([sys.executable,clipy,host,"4009",s])
+  exit()
+
+def nonblank(x):
+  return re.search(r"\S\s+\S",x)
+def main():
+  ethers = filter(nonblank,open("/etc/ethers").read().rstrip().split("\n"))
+  etherd = {}
+  for mac,*names in [re.split(r"\s+",t) for t in ethers]:
+    for name in names:
+      etherd[name.lower()] = mac
+  for arg in sys.argv[1:]:
+    arg = arg.lower()
+    try:
+      wakey(arg,etherd[arg])
+    except KeyError:
+      print(f"Mac for host '{arg}' not found")
+def wakey(name,mac):
+  print(f"At {datetime.now().strftime('%c')}")
+  print(f"Waking {name} at mac {mac}")
+  return subprocess.run(["wakeonlan",mac])
+if __name__ == "__main__":
+  main()
+old_bash_script = """    
+name="$1"
+mac="$(grep -i " $name$" /etc/ethers | cut -f1 -d\ )"
+if [ -n "$mac" ]; then
+  echo "Waking $name ($mac)"
+  wakeonlan "$mac"
+fi
+"""
+

@@ -1,0 +1,16 @@
+# ~/.bashrc: executed by bash(1) for non-login shells.
+# see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
+# for examples
+
+JDA=/usr/jda
+. "$JDA"/etc/bash_paths_win.bashrc
+
+# If not running interactively, don't do anything
+case $- in
+    *i*) ;;
+      *) return;;
+esac
+
+# put things in ~/bin/my_stuff/
+. "$JDA"/etc/bash_common_win.bashrc
+

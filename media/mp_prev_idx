@@ -1,0 +1,12 @@
+#!/bin/bash
+[ -e ~/.mp_current ] && C="$(<~/.mp_current)" || C=0
+if [[ "$C" =~ ^[0-9]+$ ]]; then
+  ((C--))
+  if ((C < 0)); then
+    C=0
+  fi
+else
+  C=0
+fi
+echo "$C" >| ~/.mp_current
+notify-send "mpd channel now $C"

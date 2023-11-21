@@ -1,0 +1,5 @@
+#!/bin/bash
+A="$1"
+T="thumbs/${A%.*}.jpg"
+[ ! -d thumbs ] && mkdir -p thumbs
+[ ! -e "$T" ] && ffmpeg -ss 120 -i "$A" -vframes 1 "$T"

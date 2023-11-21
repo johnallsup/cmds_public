@@ -1,0 +1,10 @@
+#!/bin/bash
+[ -d "$JSTORE" ] || JSTORE="$HOME/.jstor"
+LOC="$1"
+shift
+[ -z "$LOC" ] && LOC="_"
+D="$(dirname "$LOC")"
+#echo "Dir=$D"
+#echo "Loc=$LOC"
+mkdir -p "$JSTORE/$D"
+cat "$@" >| "$JSTORE/$LOC"

@@ -1,0 +1,35 @@
+#!/bin/bash
+J=""
+for s; do
+  if [ "$s" = "-j" ]; then
+    J="-j"
+    continue
+  fi
+  if [ ! -e "$s" ]; then
+    echo "$s does not exist, skipping"
+    continue
+  fi
+  if [[ "$s" =~ \.tar\. ]] || [[ "$s" =~ \.tar$ ]]; then
+    a="$(basename "$s")"
+    a="${a%.*}"
+    a="${a%.tar}"
+    f="$(readlink -f "$s")"
+    (
+      mkdir -p "$a"
+      cd "$a"
+      tar xvf "$f"
+    )
+  elif [[ "$s" =~ \.zip$ ]]; then
+    a="$(basename "$s")"
+    a="${a%.zip}"
+    unzip $J -d "$a" "$s"
+  elif [[ "$s" =~ \.(7z|rar)$ ]]; then
+    a="$(basename "$s")"
+    a="${a%.*}"
+    if [ -n "$J" ]; then
+      7z e -o"$a" "$s"
+    else
+      7z x -o"$a" "$s"
+    fi
+  fi
+done

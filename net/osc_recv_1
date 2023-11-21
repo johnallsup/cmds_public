@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+import os
+
+from pythonosc.dispatcher import Dispatcher
+from pythonosc.osc_server import BlockingOSCUDPServer
+
+def default_handler(address, *args):
+    print(f"recv {address}: {args}")
+
+dispatcher = Dispatcher()
+dispatcher.set_default_handler(default_handler)
+
+ip = os.getenv("HOST","0.0.0.0")
+port = int(os.getenv("PORT",2708))
+
+server = BlockingOSCUDPServer((ip, port), dispatcher)
+try:
+  server.serve_forever()  # Blocks forever
+except KeyboardInterrupt:
+  print("Ctrl-C")
+  exit()

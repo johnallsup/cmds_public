@@ -1,0 +1,17 @@
+#!/bin/bash
+_tmx_completions()
+{
+  COMPREPLY=()
+  local CURWORD="${COMP_WORDS[COMP_CWORD]}"
+  local WORDS=()
+  if tmux list-sessions >& /dev/null; then
+    while read -r line
+    do
+      WORDS+=("$line")
+    done < <(tmux list-sessions | cut -f1 -d:)
+    COMPREPLY=($(compgen -W "${WORDS[*]}" -- "$CURWORD"))
+  else
+    echo "No tmux sessions"
+  fi
+}
+complete -F _tmx_completions tmx

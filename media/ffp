@@ -1,0 +1,36 @@
+#!/bin/bash
+files=()
+format=n
+streams=n
+show=n
+for s; do
+  if [ "$s" = "-f" ]; then
+    format=y
+    show=y
+  elif [ "$s" = "-s" ]; then
+    streams=y
+    show=y
+  else
+    files+=("$s")
+  fi
+done
+cmd=(ffprobe -hide_banner)
+echo "${cmd[@]}"
+if [ "$show" = y ]; then
+  cmd+=(-print_format json)
+fi
+if [ "$format" = y ]; then
+  cmd+=(-show_format)
+fi
+if [ "$streams" = y ]; then
+  cmd+=(-show_streams)
+fi
+if [ "$show" = y ]; then
+  for s in "${files[@]}"; do
+    "${cmd[@]}" "$s" 2>/dev/null
+  done
+else
+  for s in "${files[@]}"; do
+    "${cmd[@]}" "$s" 2>&1
+  done
+fi

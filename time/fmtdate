@@ -1,0 +1,19 @@
+#!/usr/bin/env perl
+use Term::ReadKey;
+
+($wchar, $hchar, $wpixels, $hpixels) = GetTerminalSize();
+
+$a = $wchar-6;
+$t = localtime();
+$l = length($t);
+$z = $a-$l;
+$nl = "\n";
+if( $ARGV[0] eq "r" ) {
+  $nl = "\r";
+}
+if( $z < 0 ) {
+  print "$t$nl";
+} else {
+  print "==[ ".$t." ]".("=" x $z)."$nl";
+}
+

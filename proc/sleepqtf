@@ -1,0 +1,44 @@
+#!/usr/bin/env python
+import sys
+from PySide6.QtWidgets import QApplication
+from sleepqt import Countdown
+from datetime import datetime
+
+def parse_time(x):
+  a = x.split(":")
+  if len(a) < 1 or len(a) > 3:
+    raise ValueError("Time should be in the format ss or mm:ss or hh:mm:ss")
+  if len(a) == 1:
+    s = int(a[0])
+    h,m = 0,0
+  elif len(a) == 2:
+    m,s = map(int,a)
+    h = 0
+  else:
+    h,m,s = map(int,a)
+  return (h,m,s)
+
+def compute_secs(x):
+  h,m,s = parse_time(x)
+  dt = 3600*h+60*m+s
+  return dt
+
+def main():
+  args = sys.argv[1:]
+
+  if len(args) == 0:
+    print(f"sleepyqt sleep-time(h:m:s)")
+    exit(1)
+  dt = compute_secs(args[0])
+  t = int(datetime.now().timestamp())
+  t0 = t+dt
+  app = QApplication([])
+  win = Countdown(t0)
+  win.go()
+  try:
+    exit(app.exec())
+  except KeyboardInterrupt:
+    app.quit()
+
+if __name__ == "__main__":
+  main()

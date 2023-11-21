@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# this was the old way -- we only need the block device when mounting -- we can just umount
+do_one2() {
+    local BD
+    if BD="$(guessbd "$1")"; then
+        echo Unmounting "$BD"
+        udisksctl unmount -b "$BD"
+    else
+        echo Cannot unmount "$1"
+    fi
+}
+do_one() {
+  fsof "$1" | xargs umount || do_one2 "$1"
+}
+
+if [ $# = 0 ]; then
+  lsblk -f | grep "^└─"
+  exit
+fi
+for s; do do_one "$s"; done

@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+usage = """regex <search> <lines...>"""
+import re
+import sys
+args = sys.argv[1:]
+try:
+  search, *lines = args
+  if len(lines) == 0:
+    raise Exception()
+except Exception:
+  print(usage,file=sys.stderr)
+  exit(1)
+r = re.compile(search)
+for x in lines:
+  m = r.search(x)
+  if m:
+    print(m.group())

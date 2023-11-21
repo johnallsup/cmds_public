@@ -1,0 +1,126 @@
+alias .w=cmdwhich
+cmdwhich() {
+  # .w cat a b c # becomes cat $(which a) $(which b) $(which c)
+  # .w head -n1 -- a b c # becomes head -n1 $(which a) $(which b) $(which c)
+  # in amy case, switches are passed through if they don't match a command
+  [ -z "$1" ] && { echo "cmdwhich CMD [cmd cmd ...] where CMD must be nonempty" ; return ; }
+  [ $# = 1 ] && { which "$1"; return; }
+  local A=()
+  local B=()
+  local S=n
+  local CMD="$1"
+  shift
+  for s; do
+    #echo "s=$s"
+    if [ "$s" = "--" ]; then
+      echo "=="
+      S=y
+      B=("${A[@]}")
+      A=()
+      continue
+    fi
+    if [ "${s:0:1}" = "-" ]; then
+      A+=("$s")
+    else
+      local W="$(which "$s")"
+      if [ -x "$W" ]; then
+        A+=("$W")
+      else
+        echo "$1 not found"
+      fi
+    fi
+  done
+  if [ "${B[*]}${A[*]}" = "" ]; then
+    echo "Nothing found"
+    return
+  fi
+  "$CMD" "${B[@]}" "${A[@]}"
+}
+.wd() {
+  # which dirof
+  # first argument is what we take the which of
+  # rest is command
+  # examples
+  #   .wd bash ls -l #=> ls -l /bin
+  if [ $# = 0 ]; then
+    cd /usr/jda/cmds
+    return
+  fi
+  local A="$1"
+  local B="$(which "$A")"
+  if [ ! -e "$B" ]; then
+    echo "No $A found"
+    return
+  fi
+  B="$(readlink -f "$B")" # deref links
+  local D="$(dirname "$B")"
+  shift
+  if [ "$#" = 0 ]; then
+    cd "$D"
+  else
+    "$@" "$D"
+  fi
+}
+for s in cat bat vi less; do
+  alias "${s}w"=".w ${s}"
+done
+
+# listing my commands
+.cmds() { # cd to cmds directory
+  local C=/usr/jda/cmds
+  if [ $# -gt 0 ]; then
+    local A="$1"
+    if [ -d "$C/$A" ]; then
+      cd "$C/$A"
+    else
+      echo "$C/$A does not exist"
+    fi
+  else
+    cd "$C"
+  fi
+}
+_cmds_completions() {
+  COMPREPLY=()
+  local CURWORD="${COMP_WORDS[COMP_CWORD]}"
+  local WORDS=()
+  while read -r line
+  do
+    WORDS+=("$line")
+  done < <(cd /usr/jda/cmds; ls -d */ | cut -f1 -d/)
+  COMPREPLY=($(compgen -W "${WORDS[*]}" -- "$CURWORD"))
+}
+alias .cs=.cmds
+complete -F _cmds_completions .cmds .cs
+
+.cmdl() { # ls cmds directory
+  pushd /usr/jda/cmds > /dev/null
+  if [ $# -gt 0 ]; then
+    local A="$1"
+    shift
+    if [ -d "$A" ]; then
+      cd "$A"
+      ls "$@"
+    else
+      echo "cmds/$A does not exist"
+    fi
+  fi
+  popd > /dev/null
+}
+alias .cl=.cmdl
+complete -F _cmds_completions .cmdl .cl
+.install() {
+  (
+    cd /usr/jda/cmds
+    ./install.sh
+  )
+}
+.tmux-in-tmux() {
+  local C="${1-blue}" P="${2-C-a}"
+  tmux unbind C-b
+  tmux set-option -g prefix "$P"
+  tmux bind-key "$P" send-prefix
+  tmux set -g status-bg "$C"
+}
+.tmux_bar_color() {
+  tmux set -g status-bg "$1"
+}

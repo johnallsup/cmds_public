@@ -1,0 +1,2 @@
+#!/bin/bash
+ffpl -fs -loop 0 "$@"

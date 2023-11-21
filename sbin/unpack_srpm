@@ -1,0 +1,4 @@
+#!/bin/bash
+for s; do
+  [ -f "$s" ] && rpm2cpio "$s" | cpio -idmv
+done

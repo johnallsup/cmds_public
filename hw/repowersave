@@ -1,0 +1,6 @@
+#!/bin/bash
+performance
+sleep 5
+powersave
+sleep 3
+cpufreq

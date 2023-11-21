@@ -1,0 +1,16 @@
+if [ -d /usr/anaconda/ ]; then 
+  echo "usrconda => /usr/anaconda"
+  .s usrconda
+  return
+fi
+if [ -d "$HOME/anaconda3" ]; then 
+  echo "homeconda => $HOME/anaconda3"
+  .s homeconda
+  return
+fi
+echo "No anaconda"
+return 1
+
+fixconda() {
+    sudo chown -R root.anaconda /usr/anaconda 
+}

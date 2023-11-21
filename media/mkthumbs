@@ -1,0 +1,19 @@
+#!/bin/bash
+make_thumb() {
+  local A T
+  A="$1"
+  T="thumbs/${A%.*}.jpg"
+  [ ! -d thumbs ] && mkdir -p thumbs
+  [ ! -e "$T" ] && ffmpeg -ss 120 -i "$A" -vframes 1 "$T"
+}
+if [ $# = 0 ]; then
+  echo "Making all thumbs for .mkv and .mp4"
+  for s in *.mkv *.mp4; do
+    make_thumb "$s"
+  done
+else
+  for s; do
+    make_thumb "$s"
+  done
+fi
+

@@ -1,0 +1,20 @@
+#!/bin/bash
+T="${TIMEOUT-1}"
+if [ "$OSTYPE" = "cygwin" ]; then
+  ((T *= 1000))
+  ARGS=(-n 1 -w $T)
+else
+  ARGS=(-c 1 -W $T)
+fi
+for s; do
+  while true; do
+    ping "${ARGS[@]}" "$s"
+    A="$?"
+    echo "Return $A"
+    if [ "$A" = 0 ]; then
+      break
+    fi
+    sleep 1 || exit # also necessary for Ctrl-C
+  done
+  echo "Ping $s succeeded."
+done

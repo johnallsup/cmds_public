@@ -1,0 +1,25 @@
+#!/usr/bin/perl
+#
+# prints out multiple files if a tie
+#
+# else is the same as
+# ls -t | head -n1
+# except that it ignores non-existent args
+#
+$newest = 0;
+@newest = ();
+for(@ARGV) {
+  if( @a = stat ) {
+    ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,
+    $atime,$mtime,$ctime,$blksize,$blocks) = @a;
+    if( $mtime > $newest ) {
+      $newest = $mtime;
+      @newest = ( $_ );
+    } elsif( $mtime == $newest ) {
+      push @newest, $newest;
+    }
+  }
+}
+for(@newest) {
+  print "$_\n";
+}

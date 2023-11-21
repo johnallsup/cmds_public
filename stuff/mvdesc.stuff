@@ -1,0 +1,27 @@
+findmnt_target() {
+  tgt="$(findmnt -n -o target "$1")"
+}
+findmnt_of() {
+  local a="$(readlink -f "$1")"
+  local tgt
+  findmnt_target "$a"
+  while [ "$tgt" = "" ]; do
+    a="$(dirname "$a")"
+    findmnt_target "$a"
+  done
+  echo "$tgt"
+}
+mvdesc() {
+  local r d mnt
+  r="$(findmnt_of .)"
+  if [ "$r" = "/" ]; then
+    d="$HOME/descriptions"
+  else
+    d="$r/descriptions"
+  fi
+  echo "Moving descriptions to $d"
+  if exists *.description; then
+    mkdir -p "$d"
+    mv -nv -t "$d" *.description 
+  fi
+}

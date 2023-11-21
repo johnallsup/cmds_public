@@ -1,0 +1,826 @@
+#!/usr/bin/python
+version = "2023-06-19"
+import os, sys, subprocess, time, re, math
+from icecream import ic; ic.configureOutput(includeContext=True)
+import platform
+from subprocess import run,PIPE
+import json
+try:
+  from colors import color
+  def col(x,c,**kw):
+    if sys.stdout.isatty():
+      return color(x,fg=c,**kw)
+    else:
+      return x
+except:
+  def col(x,c):
+    return x
+mpdhost = os.getenv("MPD_HOST","t420b")
+try:
+  default_port = int(x := os.getenv("MP_PORT",0))
+except ValueError:
+  print(f"Invalid MP_PORT ({x})")
+  default_port = 0
+try:
+  # if mpdhpst is localhost, use 127.0.0.1
+  with open("/etc/hostname") as f:
+    etchostname = f.read().strip()
+    if etchostname.lower() == mpdhost.lower():
+      mpdhost = "127.0.0.1"
+except Exception:
+  pass
+try:
+  mpdport = int(x := os.getenv("MPD_PORT",6600))
+except ValueError:
+  print(f"MPD_PORT ({x}) is not an integer, defaulting to 6600")
+  modport = 6600
+mpdbase = 6600
+mpdports = []
+def mpcmd(xs,**kw):
+  cmd = ["mpc","-h",mpdhost,"-p",str(mpdport)]+xs
+  #print(f"{cmd=}")
+  return run(cmd,**kw)
+def validate_port(p):
+  p = int(p)
+  if p < 0 or p > 399:
+    print(f"UI port offset must be in the range 1..399 -- got {p}")
+    raise ValueError()
+    return None
+  p += 6600
+  return p
+def set_port(x):
+  global mpdport
+  p = validate_port(x)
+  mpdport = p
+  os.environ["MPD_PORT"] = str(p)
+set_port(default_port)
+def push_port():
+  mpdports.append(mpdport)
+def pop_port():
+  global mpdport
+  p = mpdports.pop()
+  mpdport = p
+  os.environ["MPD_PORT"] = str(p)
+def getvol():
+  global last_play_state
+  m = mpcmd(["status"],stdout=PIPE,stderr=PIPE)
+  if m.returncode > 0:
+     err = m.stderr.decode()
+     print(f"{mpdhost}:{modport} -- error: {err.rstrip()}")
+     return -1
+  o = m.stdout.decode()
+  if "\n[playing]" in o:
+    last_play_state = "playing"
+  elif "\n[paused]" in o:
+    last_play_state = "paused"
+  else:
+    last_play_state = "stopped"
+  m = re.search(r"volume:\s*(\w+)",o)
+  try:
+    return int(m.group(1))
+  except ValueError:
+    return -1
+def gettrack():
+  m = mpcmd(["status"],stdout=PIPE,stderr=PIPE)
+  if m.returncode > 0:
+     err = m.stderr.decode()
+     return col(f"--error: {err.rstrip()}","white",bg="red")
+  x = m.stdout.decode().rstrip().splitlines()
+  if len(x) == 1:
+    return col("--stopped--","red")
+  if len(x) == 2:
+    if "Updating" in x[0]:
+      return col("--stopped, updating db--","red")
+  try:
+    tr = x[0]
+    st = x[1]
+    for line in x:
+      m = re.match(r"volume:\s*(\d+%|n/a)",line)
+      if m:
+        break
+    else:
+      return col("--failed to find volume--","red")
+  except IndexError:
+    print(f"# fail {len(x)} : {x=}")
+    return col("--fail--","red")
+  g = m.group(1)
+  if "playing" in st:
+    cx = "green"
+    st = st.replace("[playing]",col("[playing]",cx))
+    st += " " + col("vol: "+g,cx)
+  if "paused" in st:
+    cx = "yellow"
+    st = st.replace("[paused]",col("[paused]",cx))
+    st += " " + col("vol: "+g,cx)
+  return f"{tr} -- {st}"
+def make_track_data(
+    playstate="undefined",
+    volume=0,
+    repeat=False,
+    random=False,
+    single=False,
+    consume=False,
+    track_name="",
+    pl_pos=0,
+    pl_len=0,
+    t_cur="",
+    t_total="",
+    t_pc=0):
+    return { "playstate": playstate,
+    "volume": volume,
+    "repeat": repeat,
+    "random": random,
+    "single": single,
+    "consume": consume,
+    "track_name": track_name,
+    "pl_pos": pl_pos,
+    "pl_len": pl_len,
+    "t_cur": t_cur,
+    "t_total": t_total,
+    "t_pc": t_pc }
+def parse_volume_line(x):
+  m = re.match(r"volume: (\S+)\s+repeat: (\S+)\s+random: (\S+)\s+single: (\S+)\s+consume: (\S+)",x)
+  if not m:
+    return -1,False,False,False,False
+  vol,rep,ran,sin,cons = m.groups()
+  if vol == "n/a":
+    vol = -1
+  else:
+    vol = int(vol.rstrip("%"))
+  rep = True if rep == "on" else False
+  ran = True if ran == "on" else False
+  sin = True if sin == "on" else False
+  cons = True if cons == "on" else False
+  return vol,rep,ran,sin,cons
+def parse_status_line(x):
+  m = re.match(r"\[(\w+)\]\s+#(\d+)/(\d+)\s+([^/]+)/(\S+)\s+\((\d+)%\)",x)
+  if not m:
+    return -1,0,0,"#error4","#error4",0
+  else:
+    state,pl_num,pl_len,t_cur,t_total,t_pc = m.groups()
+  try:
+    pl_num = int(pl_num)
+    pl_len = int(pl_len)
+    t_pc = float(t_pc)
+  except ValueError:
+    state = "error"
+  return state,pl_num,pl_len,t_cur,t_total,t_pc
+def gettrack_data():
+  m = mpcmd(["status"],stdout=PIPE,stderr=PIPE)
+  if m.returncode > 0:
+    return make_track_data(playstate="error",track_name="#error1")
+  x = m.stdout.decode().rstrip().splitlines()
+  if len(x) == 1:
+    vol,rep,ran,sin,cons = parse_volume_line(x[0])
+    track_name= "#stopped"
+    return make_track_data(playstate="stopped",volume=vol,repeat=rep,random=ran,single=sin,consume=cons,track_name=track_name)
+  if len(x) == 2:
+    if "Updating" in x[0]:
+      vol,rep,ran,sin,cons = parse_volume_line(x[1])
+      track_name= "#stopped,updating"
+    return make_track_data(playstate="stopped",volume=vol,repeat=rep,random=ran,single=sin,consume=cons,track_name=track_name)
+  x = [ y for y in x if not "Updating DB (" in y ]
+  vol,rep,ran,sin,cons = parse_volume_line(x[2])
+  if vol < 0:
+    track_name = "#error3"
+  track_name = x[0]
+  state,pl_pos,pl_len,t_cur,t_total,t_pc = parse_status_line(x[1])
+  return make_track_data(playstate=state,volume=vol,repeat=rep,random=ran,single=sin,consume=cons,track_name=track_name,pl_pos=pl_pos,pl_len=pl_len,t_cur=t_cur,t_total=t_total,t_pc=t_pc)
+def getplaylists():
+  m = mpcmd(["lsplaylists"],stdout=PIPE)
+  x = m.stdout.decode().rstrip().splitlines()
+  return x
+def setvol(newvol):
+  newvol = max(min(newvol,100),0) # clamp
+  mpcmd(["vol",str(newvol)],stdout=PIPE)
+def newline():
+  print()
+def get_width():
+  return os.get_terminal_size().columns
+def showline(x):
+  width = get_width()
+  padding = width - len(x)
+  if padding < 2:
+    print(f"\r{x}",end="")
+    return
+  padding -= 2
+  padding_r = padding // 2
+  padding_l = padding - padding_r
+  pad_l = "="*padding_l
+  pad_r = "="*padding_r
+  print(f"\r{pad_l}[{x}]{pad_r}",end="")
+def help_both():
+  help_mp()
+  print()
+  help_mpc()
+def help_mpc():
+  print("""mpc commands (non mp commands passed through to mpc)
+consume <on|off> - Consume mode (no arg means toggle)
+crossfade [<seconds>] - Gets/set amount of crossfading between songs (0 disables)
+current [--wait] - Show the currently playing song (--wait waits until the song/state changes)
+queued - Show the currently queued (next) song
+next - Starts playing next song on queue.
+pause - Pauses playing.
+play <position> - Starts playing the song-number specified (1 if no arg)
+prev - Starts playing previous song
+random <on|off> - random mode (no arg means toggle)
+repeat <on|off> - repeat mode (no arg means toggle)
+single <on|once|off> - single mode if state (no arg means toggle)
+seek [+-][<HH:MM:SS>] or <[+-]<0-100>%> - Seeks by h:m:s or by %, +/- means relative, else absolute
+seekthrough [+-][<HH:MM:SS>] - seeks relative, possibly into other tracks
+stop - Stops playing
+toggle - Toggles between play and pause. at song number (use play)
+
+add <file> - Adds a song from the music database to the queue
+insert <file> - Like add except it adds song(s) after the currently playing one, rather than at the end
+clear - Empties the queue.
+crop - Remove all songs except for the currently playing song
+del <songpos> - Removes a queue number from the queue (0 deletes current song)
+
+mv - alias of move
+move <from> <to> - Moves song at position <from> to the position <to> in the queue
+
+searchplay <type> <query> [<type> <query>]... - Search the queue for a matching song and play it.
+
+shuffle - Shuffles all songs on the queue.
+load <file> - Loads <file> as queue, playlists stored in ~/.mpd/playlists
+lsplaylists: - Lists available playlists
+playlist [<playlist>] - Lists all songs in <playlist> (current queue of no arg)
+rm <file> - Deletes a specific playlist
+save <file> - Saves playlist as <file>
+
+listall [<file>] - Lists <song file> from database (no arg means list all)
+ls [<directory>] - Lists all files/folders in directory (no arg means root)
+
+search <type> <query> [<type> <query>]... - Searches for substrings in song tags.  Any number of tag type and query combinations can be specified. Possible tag types are: artist, album, title, track, name, genre, date, composer, performer, comment, disc, filename, or any (to match any tag).
+
+search <expression> - Searches with a filter expression,
+e.g. mpc search '((artist == "Kraftwerk") AND (title == "Metall auf
+Metall"))'
+Check the MPD protocol documentation for details.  This syntax can be used with find and findadd as well.  (Requires libmpdclient 2.16 and MPD 0.21)
+
+find <type> <query> [<type> <query>]... - Same as search, but tag values must match query exactly instead of doing a substring match.
+
+findadd <type> <query> [<type> <query>]... - Same as find, but add the result to the current queue instead of printing them.
+
+list <type> [<type> <query>]... [group <type>]... - Return a list of all tags of given tag type.  Optional search type/query limit results in a way similar to search. Results can be grouped by one or more tags.  Example:
+e.g. mpc list album
+
+stats - Displays statistics about MPD.
+
+update [--wait] [<path>] - Scans for updated files in the music directory.  The optional parameter path (relative to the music directory) may limit the scope of the update. With --wait, mpc waits until MPD has finished the update.
+
+rescan [--wait] [<path>] - Like update, but also rescans unmodified files.
+
+albumart <file> - Download album art for the given song and write it to stdout.
+readpicture <file> - Download a picture embedded in the given song and write it to stdout.
+
+Output Commands
+volume [+-]<num> - Sets the volume to <num> (0-100).  If + or - is used, then it adjusts the volume relative to the current volume.
+
+outputs - Lists all available outputs
+
+Client-to-client Commands
+channels - List the channels that other clients have
+subscribed to.
+sendmessage <channel> <message> - Send a message to the
+specified channel.
+waitmessage <channel> - Wait for at least one message on
+the specified channel.
+subscribe <channel> - Subscribe to the specified channel
+and continuously receive messages.
+
+idle [events] - Waits until an event occurs.  Prints a list of event names, one per line. If you specify a list of events, only these events are considered.
+idleloop [events] - Similar to idle, but re-enters "idle" state after events have been printed. If you specify a list of events, only these events are considered.
+
+status [format] - Without an argument print a three line status
+output equivalent to "mpc" with no arguments. If a format string is given then the delimiters are processed exactly as how they are for metadata. See the '-f' option in Options
+
+Name	Description
+%totaltime%	The total duration of the song.
+%currenttime%	The time that the client is currently at.
+%percenttime%	The percentage of time elapsed for the current song.
+%songpos%	The position of the current song within the playlist.
+%length%	The number of songs within the playlist
+%state%	Either 'playing' or 'paused'
+%volume%	The current volume spaced out to 4 characters including a percent sign
+%random%	Current status of random mode. 'on' or 'off'
+%repeat%	Current status of repeat mode. 'on' or 'off'
+%single%	Current status of single mode. 'on', 'once', or 'off'
+%consume%	Current status of consume mode. 'on' or 'off'
+version - Reports the version of the protocol spoken, not the real
+version of the daemon.
+""")
+def help_mp():
+  print("""mp commands (other commands passed through to mpc)
+    sleep - sleep <n>: wait for n seconds
+    wait - sleep <n>: wait for n seconds (alias of sleep)
+    getvol - get volume
+    vol - set volume 43 to set to 43, +7 to increase by 7, -5 to decrease by 5, %43.5 to scale by 43.5%
+    v -   same as vol
+    vXX - where XX is numeric, same as vol XX, but if X is in the range 1-9 it is multiplied by 10.
+    sus - suspend (i.e. put machine to sleep)
+    suspend - suspend (alias of sus)
+    sys - suspend (alias of sus, common typo of sus)
+    ping - ping music player
+    wsh - wake and ssh to music player
+    wash - wake and ssh (alias of wsh)
+    sh - ssh to music player
+    ssh - ssh to music player
+    ftp - sftp to music player
+    sftp - sftp to music player
+    ft - sftp to music player
+    f - sftp to music player
+    z - random on/off (no arg means toggle)
+    y - single on/off (no arg means toggle)
+    s - single on/off (no arg means toggle)
+    c - consume on/off (no arg means toggle)
+    listp - list playlists
+    lp - load playlist (by name or number, no arg means list playlists)
+    pl - load playlist (alias of lp)
+    r - repeat on/off (no arg means toggle)
+    psus - pause and suspend
+    wp - wake and play
+    wui - wake and launch ui (ncmpcpp)
+    ui - launch ui (ncmpcpp)
+    gui - launch ui (alias of ui)
+    wake - wake
+    w - wake
+    h - help on mp and mpc commands
+    hmp - help on mp commands
+    hmpc - help on mpc commands
+    help - help on mp and mpc commands
+    help_mp - help on mp commands
+    help_mpc - help on mpc commands
+""")
+def exp_ports(x):
+  portsel = set()
+  if "-" in x:
+    fr,to = x.split("-",1)
+    try:
+      fr = int(fr)
+      to = int(to)
+      if to < fr:
+        fr,to = to,fr
+      if fr < 0 or to < 0 or fr > 399 or to > 399:
+        raise ValueError()
+    except ValueError:
+      print(f"Invalid port range: {x}")
+    for y in range(fr,to+1):
+      portsel.add(y)
+  else:
+    try:
+      y = int(x)
+      if y < 0 or y > 399:
+        raise ValueError()
+      portsel.add(int(x))
+    except ValueError:
+      print(f"Invalid port {x}")
+  return portsel
+
+def docmd(cmd,is_last=False):
+  global mpdport, mpdhost, mpdbase
+  if len(cmd) == 0:
+    return
+  c = cmd[0]
+  if m := re.match(r"([\.\d]+)sl$",c):
+    return docmd([f"sl{m.group(1)}"],is_last=is_last)
+  elif m := re.match(r"sl([\.\d]+)$",c):
+    a = m.group(1)
+    try:
+      t = float(a)
+    except ValueError:
+      print(f"Sleep time {a} not valid, must be a float or int")
+      return
+    return docmd(["sleep",t],is_last=is_last)
+  elif c in ["select","sel"]: # select lowest numbered playing track
+    push_port()
+    for i in range(32):
+      set_port(i)
+      y = gettrack()
+      if "[playing]" in y:
+        print(f"Port {i} selected")
+        pop_port()
+        set_port(i)
+        return
+    print(f"No playing tracks")
+    pop_port()
+  elif c in ["sleep","wait"]: # sleep n -- wait for n seconds (can be float, default is 2)
+    if len(cmd) > 1:
+      t = float(cmd[1])
+    else:
+      t = 2.0
+    t0 = int(math.floor(t))
+    t1 = t - t0
+    if t1 < 0.01:
+      t1 = 0
+    print()
+    showline(f"sleeping for {t} seconds")
+    if t1 > 0:
+      time.sleep(t1)
+    while t0 > 0:
+      showline(f"sleeping for {t0} seconds")
+      t0 -= 1
+      time.sleep(1)
+    showline(f"finished sleeping")
+    newline()
+  elif c[0] == "%":
+    cmd=c[1:]
+    if len(cmd) == 0:
+      return
+    if cmd[0] == "p":
+      cmd = "pause"
+    elif cmd[0] == "s":
+      cmd = "stop"
+    else:
+      print(f"Not doing {cmd} en masse")
+      return
+    print(f"Doing {cmd} all")
+    tr_range = os.getenv("TR_RANGE","0-15")
+    portsel = set()
+    try:
+      portsel.update(exp_ports(tr_range))
+    except Exception:
+      print(f"Invalid TR_RANGE: {tr_range}")
+    push_port()
+    for x in sorted(portsel):
+      set_port(x)
+      docmd([cmd])
+    pop_port()
+  elif (c.isnumeric() and int(c) >= 0 and int(c) <= 399): # just a number sets the relative port
+    if len(cmd) == 1:
+      set_port(int(c))
+    else:
+      push_port()
+      set_port(int(c))
+      docmd(cmd[1:])
+      pop_port()
+  elif c in ["port","rp","po"]: # port n, rp n, po n -- set or show relative port
+    if len(cmd) == 1:
+      print(f"port={mpdport}")
+    else:
+      set_port(cmd[1])
+  elif c in ["base"]: # set port base (you probably don't want to do this, but you can)
+    if len(cmd) > 1:
+      mpdbase = int(cmd[1])
+    else:
+      mpdbase = int(os.getenv("MPD_PORT",6600))
+  elif c in ["start"]: # start mpd on host with selected port
+    if len(cmd) > 1:
+      portsel = set()
+      for x in cmd[1:]:
+        portsel.update(exp_ports(x))
+      for p in sorted(portsel):
+        run(["ssh","-q",mpdhost,"mpdp",str(p)])
+    else:
+      run(["ssh","-q",mpdhost,"mpdp",str(mpdport-mpdbase)])
+  elif c in ["help","h"]: # display mpc and mp help
+    help_both()
+  elif c in ["help_mpc","hmpc"]: # display mpc help
+    help_mpc()
+  elif c in ["host"]: # set host
+    if len(cmd) > 1:
+      mpdhost = cmd[1]
+    else:
+      mpdhost = os.getenv("MPD_HOST","localhost")
+  elif c in ["help_mp","hmp"]: # display mp help (though not up to date)
+    help_mp()
+  elif c in ["getvol"]: # get volume
+    print(getvol())
+  elif c in ["ver"]: # show version
+    print(f"mp version: {version}")
+    mpcmd(["ver"])
+  elif c in ["vol"]:                 # get/set volume
+    if len(cmd) == 1:                #   with no args, shows volume as getvol does
+      return docmd(["getvol"])
+    if cmd[1].startswith("+"):       #   +n adds n to volume
+      vol = getvol()
+      b = int(cmd[1][1:])
+      setvol(vol+b)
+    elif cmd[1].startswith("-"):     #   -n subtracts n from volume
+      vol = getvol()
+      b = int(cmd[1][1:])
+      setvol(vol-b)
+    elif cmd[1].startswith("%"):     #   n% sets volume to n percent of what it was before
+      vol = getvol()
+      b = int(cmd[1][1:])/100.0
+      setvol(int(b*vol))
+    else:
+      #subprocess.run(["mpc","vol",cmd[1]]) # anything else is passed through to mpc
+      mpcmd(["vol",cmd[1]])
+  elif c in ["vols"]: # get volumes of tracks
+    if len(cmd) == 1:
+      docmd(["vols",os.getenv("TR_RANGE","0-15")])
+    else:
+      portsel = set()
+      for x in cmd[1:]:
+        portsel.update(exp_ports(x))
+      push_port()
+      for x in sorted(portsel):
+        set_port(x)
+        v = getvol()
+        if v == -1:
+          t = col("--stopped--","red")
+        else:
+          if last_play_state == "playing":
+            t = col(str(v)+"%","green")
+          else:
+            t = col(str(v)+"%","yellow")
+        print(f"{mpdhost}:{x: >3} -- {t}")
+      pop_port()
+  elif c[0] == "v": # v n -- same as vol n
+    # this "v" command case must be the last of all commands beginning with v
+    if c == "v":
+      cmd[0] = "vol"
+      docmd(cmd)
+    elif c[1:].isnumeric(): # e.g. v5 sets volume to 50%, v9 sets volume to 90%
+      x = int(c[1:])
+      if x < 0:
+        x = 0
+      elif x < 10:
+        x *= 10
+      elif x > 100:
+        x = 100
+      docmd(["vol",str(x)])
+    else:
+      mpcmd(cmd)
+  elif c in ["getp"]: # just get indices of playing mpds
+    if len(cmd) == 1:
+      return docmd(["getp","0-15"])
+    if len(cmd) > 1:
+      portsel = set()
+      for x in cmd[1:]:
+        portsel.update(exp_ports(x))
+      push_port()
+      pl = []
+      for x in sorted(portsel):
+        set_port(x)
+        y = gettrack()
+        if "[playing]" in y:
+          pl.append(x)
+      print(" ".join(map(str,pl)))
+      pop_port()
+  elif c in ["isp"]: # get status of multiple running mpd's: st 3-5 gets status for mpds with rp=3,4,5
+    if len(cmd) > 1:
+      portsel = set()
+      for x in cmd[1:]:
+        portsel.update(exp_ports(x))
+      push_port()
+      for x in sorted(portsel):
+        set_port(x)
+        m = subprocess.run(["mpc","status"],stdout=subprocess.PIPE)
+        lines = m.stdout.decode().splitlines()
+        for line in lines:
+          if line[0] == "[":
+            print(f"{mpdhost}:{x} -- {line[1:].split(']')[0]}")
+            break
+        else:
+          print(f"{mpdhost}:{x} -- stopped")
+      pop_port()
+    else:
+      docmd(["status"])
+  elif c in ["psd","paused"]: # show what's paused
+    if len(cmd) == 1:
+      return docmd(["paused","0-15"])
+    if len(cmd) > 1:
+      portsel = set()
+      for x in cmd[1:]:
+        portsel.update(exp_ports(x))
+      push_port()
+      for x in sorted(portsel):
+        set_port(x)
+        y = gettrack()
+        if "[paused]" in y:
+          print(f"{mpdhost}:{x} -- {gettrack()}")
+      pop_port()
+  elif c in ["ply","playing"]: # show what's playing 
+    if len(cmd) == 1:
+      return docmd(["playing","0-15"])
+    if len(cmd) > 1:
+      portsel = set()
+      for x in cmd[1:]:
+        portsel.update(exp_ports(x))
+      push_port()
+      for x in sorted(portsel):
+        set_port(x)
+        y = gettrack()
+        if "[playing]" in y:
+          print(f"{mpdhost}:{x} -- {gettrack()}")
+      pop_port()
+  elif c in ["nplaying","npl"]:
+    if len(cmd) == 1:
+      return docmd(["nplaying","0-15"])
+    if len(cmd) > 1:
+      portsel = set()
+      for x in cmd[1:]:
+        portsel.update(exp_ports(x))
+      push_port()
+      npls = []
+      for x in sorted(portsel):
+        set_port(x)
+        y = gettrack()
+        if "[playing]" in y:
+          npls.append(x)
+      print(" ".join(map(str,npls)))
+      pop_port()
+  elif c.startswith("tr") and c[2:].isnumeric(): # list tracks
+    x = int(c[2:])
+    x = min(40,x)
+    x = max(0,x)
+    if x == 0:
+      docmd(["tr","0"])
+    else:
+      docmd(["tr",f"0-{x}"])
+  elif c in ["json"]: # dump state of tracks 0-15 as json
+    # json for mpd managers
+    if len(cmd) == 1:
+      # print(gettrack())
+      tr_range = os.getenv("TR_RANGE","0-15")
+      docmd(["json",tr_range])
+    if len(cmd) > 1:
+      portsel = set()
+      for x in cmd[1:]:
+        portsel.update(exp_ports(x))
+      push_port()
+      track_data = []
+      for x in sorted(portsel):
+        set_port(x)
+        track_data.append(gettrack_data())
+      pop_port()
+      json.dump(track_data,sys.stdout)
+      exit()
+  elif c in ["tr","track"]: # show playing track (can use multiple ports and ranges e.g. 1 3-4
+    if len(cmd) == 1:
+      # print(gettrack())
+      tr_range = os.getenv("TR_RANGE","0-15")
+      docmd(["tr",tr_range])
+    if len(cmd) > 1:
+      portsel = set()
+      for x in cmd[1:]:
+        portsel.update(exp_ports(x))
+      push_port()
+      for x in sorted(portsel):
+        set_port(x)
+        print(f"{mpdhost}:{x: >3} -- {gettrack()}")
+      pop_port()
+  elif c in ["st"]: # get status of multiple running mpd's: st 3-5 gets status for mpds with rp=3,4,5
+    if len(cmd) > 1:
+      portsel = set()
+      for x in cmd[1:]:
+        portsel.update(exp_ports(x))
+      push_port()
+      for x in sorted(portsel):
+        print()
+        print(f"Status for port: {x}")
+        set_port(x)
+        docmd(["status"])
+      pop_port()
+    else:
+      docmd(["status"])
+  elif c in ["sus","suspend","sys"]: # put the mpd computer to sleep (it needs 'sus' in its path)
+    print(f"> suspending")
+    subprocess.run(["ssh",mpdhost,"susp"])
+  elif c in ["ping"]: # ping the mpd computer
+    p = platform.platform() 
+    npings = 16
+    if len(cmd) > 1:
+      try:
+        npings = int(cmd[1])
+        npings = min(32,max(0,npings))
+      except Exception:
+        pass
+    args = []
+    if "Linux" in p:
+      pingargs = ["-c","1","-w","1"]
+      for n in range(npings):
+        m = subprocess.run(["ping"]+pingargs+[mpdhost])
+        if m.returncode == 0:
+          break
+    elif "macOS" in p:
+      pingargs = ["-c","1","-W","1"]
+      for n in range(npings):
+        m = subprocess.run(["ping"]+pingargs+[mpdhost])
+        if m.returncode == 0:
+          break
+    else:
+      # windows
+      pingargs = ["-n","1","-w","1"]
+      for n in range(npings):
+        m = subprocess.run(["ping"]+pingargs+[mpdhost])
+        if m.returncode == 0:
+          break
+  elif c in ["wsh","wash"]: # wake and ssh into the mpd computer
+    docmd(["wake"])
+    docmd(["ssh"])
+  elif c in ["sh","ssh"]: # ssh into the mpd computer
+    subprocess.run(["ssh",mpdhost])
+  elif c in ["ftp","sftp","ft","f"]: # sftp into the mpd computer, optional arg is dir to cd to
+    if len(cmd) > 1:
+      d = cmd[1]
+      host = f"{mpdhost}:{d}"
+    else:
+      host = mpdhost
+    subprocess.run(["sftp",host])
+  elif c in ["z"]: # toggle random mode
+    docmd(["random"]+cmd[1:])
+  elif c in ["y","s"]: # toggle single mode
+    docmd(["single"]+cmd[1:])
+  elif c in ["c"]: # toggle consume mode
+    docmd(["consume"]+cmd[1:])
+  elif c in ["listp"]: # list playlists in numbered list
+    xs = getplaylists()
+    nl = len(str(len(xs)+1))
+    for i,x in enumerate(xs):
+      n = ((" "*nl)+str(i+1))[-nl:]
+      print(f"{n}: {x}")
+  elif c in ["lp","pl"]: # with no args is the same as listp, else loads playlist
+    if len(cmd) > 1:
+      pls = cmd[1:]
+      xs = getplaylists()
+      docmd(["clear"])
+      for x in pls:
+        if x.isnumeric(): # can refer to playlist by its numerical index as given by listp
+          i = int(x)-1
+          if i < len(xs):
+            docmd(["load",xs[i]])
+        elif x in xs: # else try to load by name
+          docmd(["load",x])
+        else:
+          print(f"Playlist {x} does not exist")
+    else:
+      docmd(["listp"])
+  elif c in ["r"]: # toggle repeat mode
+    docmd(["repeat"],cmd[1:])
+  elif c in ["psus"]: # pause and sus
+    docmd(["pause"])
+    docmd(["sus"])
+  elif c in ["wp"]: # wake and play
+    docmd(["w"])
+    docmd(["ping"])
+    docmd(["play"])
+  elif c in ["wui"]: # wake and load ncmpcpp
+    docmd(["w"])
+    docmd(["ping"])
+    docmd(["ui"]+cmd[1:])
+  elif c in ["ui","gui"]: # load ncmpcpp
+    if len(cmd) > 1:
+      p = validate_port(cmd[1])
+      if p is not None:
+        subprocess.run(['ncmpcpp','-p',str(p)])
+    else:
+      subprocess.run(['ncmpcpp'])
+  elif c in ["wake","w"]: # wake music pc using wmus
+    print(f"> waking")
+    subprocess.run(["wakey",mpdhost])
+  elif c == "p": # toggle play/pause
+    if len(cmd) > 1:
+      portsel = set()
+      for x in cmd[1:]:
+        portsel.update(exp_ports(x))
+      push_port()
+      for p in sorted(portsel):
+        set_port(p)
+        docmd(["p"])
+      pop_port()
+    else:
+      print(f"> toggle play/pause (rport {mpdport-mpdbase})")
+      docmd(["toggle"])
+  elif m := re.match(r"(\d+)(\w+)$",c):
+    p,cx = m.groups()
+    push_port()
+    docmd([p])
+    docmd([cx]+cmd[1:])
+    pop_port()
+  elif re.match(r"p(\d+)(-(\d+))?$",c):
+    return docmd(["p",c[1:]]+cmd[1:])
+  elif c == "lscmd":
+    return run(["awk","BEGIN { x = 0 } /^def do/ { x = 1; next } x == 1 && /^def/ { x = 0 } x == 1 && /^  (el?)if c/ { print }",sys.argv[0]])
+  else: # all else gets passed straight through to mpc
+    print(f"> mpc {' '.join(cmd)}")
+    mpcmd(cmd)
+    #subprocess.run(["mpc"]+cmd)
+def main():
+  cmds = [[]]
+  args = sys.argv[1:]
+  if len(args) == 0:
+    args = ["status"]
+  argstr = " ".join(args)
+  argsp = argstr.split(",")
+  cmds = []
+  for arg in argsp:
+    arg = arg.strip()
+    xs = list(map(lambda t: t.strip(), re.split(r"\s+",arg)))
+    cmds.append(xs)
+  for arg in args:
+    if ',' in arg:
+      xs = arg.split(",")
+      xs = list(map(lambda t: t.strip(),xs))
+  last_cmd_idx = len(cmds) - 1
+  for i,cmd in enumerate(cmds):
+    docmd(cmd,i+1==last_cmd_idx)
+if __name__ == "__main__":
+  try:
+    main()
+  except KeyboardInterrupt:
+    print(f"Exiting due to keyboard interrupt.")
+    exit(1)

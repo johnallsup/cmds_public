@@ -1,0 +1,13 @@
+#!/bin/bash
+
+#screen -x -r "$@"
+
+if [ -z "$1" ]; then
+  tmux ls
+elif [ "$1" = "-1" ]; then
+  tmux ls | cut -f1 -d:
+else
+  S="$1"
+  shift
+  tmux attach -t "$S" "$@"
+fi

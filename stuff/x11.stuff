@@ -1,0 +1,46 @@
+x11() {
+  local D="$1"
+  if [ "$D" = "-x" ]; then
+    unset DISPLAY
+  elif [ "$D" = "-l" ]; then
+    export DISPLAY=:0
+  elif [ -n "$D" ]; then
+    export DISPLAY="$D":0
+  else
+    if [ -n "SSH_CLIENT" ]; then
+      echo "Getting IP from SSH_CLIENT"
+      IP="${SSH_CLIENT%% *}"
+      echo "  IP=$IP"
+      export DISPLAY="$IP:0"
+    else
+      echo "x11 <host> # to set display"
+      echo "x11 -x # to unset display"
+    fi
+  fi
+}
+
+x11s() {
+  local D="$1"
+  if [ -n "SSH_CLIENT" ]; then
+    echo "Getting IP from SSH_CLIENT"
+    IP="${SSH_CLIENT%% *}"
+    echo "  IP=$IP"
+    export DISPLAY="$IP:$D"
+  else
+    echo "x11 <host> # to set display"
+    echo "x11 -x # to unset display"
+  fi
+}
+
+x11l() {
+  export DISPLAY=:0
+}
+
+x11d() {
+  local D="$1"
+  if [[ $D =~ : ]]; then
+    echo colon
+  else
+    echo no colon
+  fi
+}

@@ -1,0 +1,3 @@
+alias p='python'
+alias pip='python -m pip'
+alias pii='python -m pip install'

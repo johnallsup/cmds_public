@@ -1,0 +1,32 @@
+alias cd..='cd ..'
+alias cd...='cd ../..'
+alias cd....='cd ../../..'
+alias cd..3='cd ../../..'
+alias cd..4='cd ../../../..'
+alias cd..5='cd ../../../../..'
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ..3='cd ../../..'
+alias ..4='cd ../../../..'
+alias ..5='cd ../../../../..'
+alias ls..='ls ..'
+up() { local I="$1"; ((I=I)); while ((I>0)); do cd ..; ((I--)); done; }
+pcwd() { pwd | pc; }
+alias ppd=pcwd
+cdpp() { cd "$(pp)"; }
+cdt() { 
+  local today="$(today)"
+  echo "$today";
+  if [ -d "$today" ]; then
+    cd "$today"
+  fi
+}
+mkt() {
+  local today="$(today)"
+  echo "$today";
+  mkdir -p "$today"
+}
+today() { 
+  local A="${1-/}"
+  date +"%Y$A%m$A%d"
+}

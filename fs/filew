@@ -1,0 +1,5 @@
+#!/bin/bash
+for s in "$@"; do
+  w="$(which "$s")"
+  exists "$w"  && file "$w"
+done

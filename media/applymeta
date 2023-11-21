@@ -1,0 +1,16 @@
+#!/bin/bash
+I="$1"
+O="$2"
+shift 2
+if [ -z "$I" -o ! -e "$I" ]; then
+  if [ -n "$I" ]; then
+    echo "File $I does not exist"
+  fi
+  echo "applymeta <infile> <outfile> [artist=bob title=fluffball ...]"
+  exit 1
+fi
+M=()
+for s; do
+  M=("${M[@]}" -metadata "$s")
+done
+ffmpeg -i "$I" -c copy "${M[@]}" "$O"

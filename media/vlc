@@ -1,0 +1,23 @@
+#!/bin/bash
+if [ "$MACHTYPE" = "x86_64-pc-cygwin" ]; then
+  # windows cygwin
+  if [ -n "$VERBOSE" ]; then
+    "/cygdrive/c/Program Files/VideoLAN/VLC/vlc.exe" "$@"
+  else
+    "/cygdrive/c/Program Files/VideoLAN/VLC/vlc.exe" "$@" >& /dev/null &
+  fi
+elif [[ "$OSTYPE" =~ darwin ]]; then
+  # macos
+  open -n -a VLC -- "$@"
+else
+  if [ -z "$DISPLAY" ]; then
+    echo "No DISPLAY set"
+    exit 1
+  fi
+  if [ -n "$VERBOSE" ]; then
+    /usr/bin/vlc "$@"
+  else
+    /usr/bin/vlc "$@" >& /dev/null &
+  fi
+fi
+

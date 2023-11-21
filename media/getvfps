@@ -1,0 +1,16 @@
+#!/usr/bin/perl
+
+@s = ();
+%f = ();
+for $file(@ARGV) {
+  open(PIPE,"ffprobe '$file' 2>&1 |");
+  @a = <PIPE>;
+  close PIPE;
+  for(@a) {
+    if(/\s(\d[\d\.]+) fps/) {
+            $x = "$1";
+            print "$file: $x\n";
+            last;
+    }
+  }
+}

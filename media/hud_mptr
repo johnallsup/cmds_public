@@ -1,0 +1,2 @@
+#!/bin/bash
+mp tr | grep playing | cut -f2 -d\  | while read s; do mp "$s", status | sed -n -e '1 s@.*/@@; 1p; 2p'; done | xargs -d"\n" send2 f2+f3

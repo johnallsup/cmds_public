@@ -1,0 +1,8 @@
+#!/bin/bash
+#echo "Job running on behemoth encoding bluray"
+if [ -e "$HOME/.dont_sleep" ]; then
+  echo "Not suspending:"
+  cat "$HOME/.dont_sleep"
+else
+  sudo systemctl suspend
+fi

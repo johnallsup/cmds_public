@@ -1,0 +1,19 @@
+pathif() { 
+  local APPEND=n
+  for s; do
+    if [ "$s" = "-a" ]; then
+      APPEND=y
+    elif [ "$s" = "-p" ]; then
+      APPEND=n
+    fi
+    if [ ! -d "$s" ]; then continue; fi
+    if [ "$APPEND" = "y" ]; then
+      PATH="$PATH:$s"
+    else
+      PATH="$s:$PATH"
+    fi
+  done
+  local TMPATH="$PATH"
+  [ -x /usr/local/bin/tidypath ] && PATH="$(/usr/local/bin/tidypath -c "$PATH")"
+  export PATH
+}

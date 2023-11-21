@@ -1,0 +1,4 @@
+#!/bin/bash
+export NEW_EXE="$(basename "$0")"
+export NEW_EXT="html"
+new "$@"

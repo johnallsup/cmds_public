@@ -1,0 +1,5 @@
+#!/bin/bash
+[ -e ~/.mp_current ] && C="$(<~/.mp_current)" || C=0
+[[ "$C" =~ ^[0-9]+$ ]] || { echo "~/.mp_current not numeric"; exit 1; }
+notify-send "mp $C, vol +2" "$(mp $C, vol +2, status)"
+

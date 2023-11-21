@@ -1,0 +1,5 @@
+#!/bin/bash
+dev="$(guessbd "$1")"
+if [ -e "$dev" ]; then
+  udevadm info --query=all --name="$dev" | grep ID_SERIAL
+fi

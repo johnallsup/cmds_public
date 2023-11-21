@@ -1,0 +1,50 @@
+#!/usr/bin/env python
+from setproctitle import setproctitle
+from glob import glob
+import os
+import random
+import time
+from subprocess import run, PIPE
+
+def select_wallpaper_all(wallpaper):
+  wallpaper_path = os.path.abspath(wallpaper)
+  wallpaper_uri = f"file://{wallpaper_path}"
+  s = f"""var allDesktops = desktops(); 
+  for( i = 0; i < allDesktops.length; i++ ) {{ 
+    d = allDesktops[i]; 
+    d.wallpaperPlugin = 'org.kde.image'; 
+    d.currentConfigGroup = Array('Wallpaper', 'org.kde.image', 'General'); 
+    d.writeConfig('Image', '{wallpaper_uri}'); 
+  }}"""
+  return qcmd(s)
+
+def get_num_desktops():
+  s = f"""print(desktops().length)"""
+  m = qcmd(s)
+  a = m.stdout.decode().strip()
+  a = int(a)
+  return a
+
+def select_wallpaper(i,wallpaper):
+  wallpaper_path = os.path.abspath(wallpaper)
+  wallpaper_uri = f"file://{wallpaper_path}"
+  s = f"""var d = desktops()[{i}];
+  if( d ) {{
+    d.wallpaperPlugin = 'org.kde.image'; 
+    d.currentConfigGroup = Array('Wallpaper', 'org.kde.image', 'General'); 
+    d.writeConfig('Image', '{wallpaper_uri}'); 
+  }}"""
+  return qcmd(s)
+
+def qcmd(s,*xs,**kw):
+  cmd = "qdbus org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript".split(" ")
+  cmd.append(s)
+  return run(cmd,*xs,stdout=PIPE,stderr=PIPE,**kw)
+
+n = get_num_desktops()
+setproctitle("kde-next-wallpaper")
+wallpapers = glob(os.path.expanduser("~/pic/Wallpaper/w/*.jpg"))
+for i in range(n):
+  chosen = random.choice(wallpapers)
+  print(i,chosen)
+  select_wallpaper(i,chosen)

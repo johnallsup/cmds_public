@@ -1,0 +1,2 @@
+#!/bin/bash
+until exists ~/dl/*.crdown*; do echo "Waiting"; date; echo; sleep 1; done

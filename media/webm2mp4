@@ -1,0 +1,12 @@
+#!/bin/bash
+for s; do
+  if [[ "$s" =~ .webm$ ]]; then
+    if [ -f "$s" ]; then
+      ffmpeg -i "$s" "${s%.*}.mp4"
+    else
+      echo "$s does not exist"
+    fi
+  else
+    echo "$s is not a webm"
+  fi
+done

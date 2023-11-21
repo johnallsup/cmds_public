@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# sleep with countdown
+# sleepcdr a b
+# becomes
+# sleepcd (a+b*RND)
+A="$1"
+B="$2"
+((X=A))
+((Y=B))
+if ((X>5)) && ((Y>5)); then
+    ((Z=RANDOM%Y))
+    ((T=X+Z))
+#    echo "A B X Y Z T : $A $B $X $Y $Z $T"
+#    echo sleepcd $T
+    sleepcd $T
+else
+#   echo "numbers '$A' '$B' too small"
+    exit 1
+fi

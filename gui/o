@@ -1,0 +1,38 @@
+#!/bin/bash
+if [ -e /cygdrive ]; then
+  opendir() { cd "$1"; explorer .; }
+  openfile() { local a="$(readlink -f "$1")"; local d="$(dirname "$a")" b="$(basename "$a")"; cd "$d"; cmd /c start "$b"; }
+elif [ -e /System ]; then
+  opendir() { open "$1"; }
+  openfile() { open "$1"; }
+else
+  opendir() { dolphin --new-window file://"$(readlink -f "$1")" >& /dev/null & }
+  openfile() { 
+    local s="$1"
+    case "$s" in
+      *.html)
+        google-chrome "$s";;
+      *.zip)
+        unzip -d "$(basename "$s" .zip)" "$s";;
+      *.png|*.jpg|*.jpeg|*.jfif|*.gif)
+        gwenview "$s" &;;
+      *.pdf)
+        okular "$s" &;;
+      *.md)
+        mdview "$s";;
+      *.mov|*.mp4|*.mp3|*.m4a)
+        vlc "$s" > /dev/null &;;
+      *)
+        xdg-open "$s";;
+    esac
+  }
+fi
+for s; do
+  if [ -d "$s" ]; then
+    opendir "$s" &
+  elif [ -e "$s" ]; then
+    openfile "$s"
+  else
+    echo "$s does not exist, not opening"
+  fi
+done

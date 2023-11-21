@@ -1,0 +1,18 @@
+# I have rs aliased to "rsync -haux --progress" and on more than one occasion I've typed
+# rm list-of-files-to-sync target:dir/
+# and deleted what I wanted to sync. Making the remove command "remove" prevents this sort of accident.
+alias remove=/bin/rm
+rm() {
+  echo "To delete for real, use"
+  echo "remove $*"
+}
+mvt() {
+  local T="$1"
+  shift
+  if [ ! -d "$T" ]; then
+    echo "$T" is not a directory
+    return 1
+  fi
+  mv -t "$T" "$@"
+}
+alias lsd='ls -d'

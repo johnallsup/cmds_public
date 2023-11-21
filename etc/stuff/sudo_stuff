@@ -1,0 +1,3 @@
+alias setfacl='sudo /usr/bin/setfacl'
+alias getfacl='sudo /usr/bin/getfacl'
+reload() { sudo systemctl reload "$@"; }

@@ -1,0 +1,8 @@
+#!/bin/bash
+D="${1-~/dl}"
+shift
+if [ -n "$PAT" ]; then
+  while exists "$D"/*.crdown*; do [ -n "$*" ] && echo "$*"; ls -lh "$D"/*"$PAT"*.crdown*; date; echo; sleep 1; done
+else
+  while exists "$D"/*.crdown*; do [ -n "$*" ] && echo "$*"; ls -lh "$D"/*.crdown*; date; echo; sleep 1; done
+fi

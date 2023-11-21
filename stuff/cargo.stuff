@@ -1,0 +1,8 @@
+[ ! -d ~/.cargo ] && return # do nothing unless rust is installed
+.if "$HOME/.cargo/env"
+if [ -x "$(which sccache)" ]; then
+  export RUSTC_WRAPPER=$(which sccache)
+fi
+alias cargoi='cargo install'
+pathif -a "$HOME/.local/share/bob/nvim-bin"
+alias rustbook='rustup docs --book'

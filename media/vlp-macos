@@ -1,0 +1,73 @@
+#!/bin/zsh
+# vlc -p n ...args
+# port=n vlc ...args
+zmodload zsh/mapfile
+PORT="${port-0}"
+MAXPORT=1000
+BASEPORT="${HTTP_BASE_PORT-8000}"
+TBASEPORT="${TELNET_BASE_PORT-7000}"
+if [ "$1" = "-p" ]; then
+  shift
+  PORT="$1"
+  shift
+fi
+if ((PORT>=MAXPORT)); then
+  echo "port must be in the range 0..999 ($BASEPORT will be added to get http port, $TBASEPORT added for telnet port)"
+  exit 1
+fi
+((HPORT=BASEPORT+PORT))
+((TPORT=TBASEPORT+PORT))
+A=()
+B=()
+P=()
+if [ -n "$V" ]; then
+  A+=(-volume "$V")
+fi
+for s; do
+  if [[ "$s" =~ \.m3u$ ]]; then
+    if [ -e "$s" ]; then
+      echo "Playlist $s"
+      P+=("$s")
+      C=("${(f)mapfile[$s]}")
+      for t in "${C[@]}"; do
+        if [ -e "$t" ]; then
+          echo "Adding $t"
+          B+=("$t")
+        else
+          echo "Skipping $t"
+        fi
+      done
+    else
+      echo "Playlist $s does not exist"
+    fi
+  elif [ -e "$s" ]; then
+    echo "file $s"
+    B+=("$(readlink -f "$s")")
+  elif [[ "$s" =~ ^- ]]; then
+    echo "arg: $s"
+    A+=("$s")
+  elif [[ "$s" =~ ^\\+[Ll][Rr][Zz]$ ]]; then
+    if [[ "$s" =~ L ]]; then
+      A+=(--loop)
+    else
+      A+=(--no-loop)
+    fi
+    if [[ "$s" =~ R ]]; then
+      A+=(--repeat)
+    else
+      A+=(--no-repeat)
+    fi
+    if [[ "$s" =~ Z ]]; then
+      A+=(--random)
+    else
+      A+=(--no-random)
+    fi
+  else
+    echo "$s does not exist"
+  fi
+done
+F=("${P[@]}" "${B[@]}")
+echo "vlc:$HPORT:$TPORT:$(IFS='#' ; echo "${F[*]}";)" | tee -a ~/vlp.log
+open -n -a VLC --args --http-port "$HPORT" --telnet-port "$TPORT" --telnet-password "tree" --http-password "tree" "${A[@]}" "${B[@]}"
+# vlc -p n ...args
+# port=n vlc ...args

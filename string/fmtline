@@ -1,0 +1,25 @@
+#!/usr/bin/env perl
+#use Term::ReadKey;
+
+#($wchar, $hchar, $wpixels, $hpixels) = GetTerminalSize();
+$wchar = `tput cols`;
+
+$sep = 2;
+$maxlen = $wchar-6;
+$a = localtime();
+@t = ($a);
+push @t, @ARGV;
+$t = join " -- ", @t;
+$l = length($t);
+
+$z = $maxlen-$l;
+$nl = "\n";
+if( $ENV{NL} eq "r" ) {
+  $nl = "\r";
+}
+if( $z < 0 ) {
+  print "$t$nl";
+} else {
+  print "==[ ".$t." ]".("=" x $z)."$nl";
+}
+

@@ -1,0 +1,8 @@
+setmus() {
+  local H="${1-t420b}" P="${2-6600}"
+  if [ -n "$H" ]; then
+    export MPD_HOST="$H"
+    export MPD_PORT="$P"
+  fi
+}
+setmus

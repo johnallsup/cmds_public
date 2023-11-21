@@ -1,0 +1,4 @@
+#!/bin/bash
+if [ ! "$USER" = "root" ]; then exec sudo "$0"; fi
+cd /sys/devices/system/cpu
+for s in cpu*/online; do echo 1 >| "$s"; done

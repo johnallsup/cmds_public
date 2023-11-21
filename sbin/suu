@@ -1,0 +1,5 @@
+#!/bin/bash
+U="$1"
+shift
+if [ -z "$U" -o "$U" = "." ]; then U="$(stat -c "%U" .)"; fi
+sudo su "$U" "$@"

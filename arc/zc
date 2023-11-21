@@ -1,0 +1,22 @@
+#!/bin/bash
+s="$1"
+shift
+if [ -e "$s" ]; then
+  echo "$s already exists, skipping"
+  exit 1
+fi
+if [[ "$s" =~ \.tar\.(xz|gz|bz2) ]]; then
+  echo "Creating $s with tar (compression)"
+  tar cvaf "$s" "$@"
+elif [[ "$s" =~ \.tar$ ]]; then
+  echo "Creating $s with tar (uncompressed)"
+  tar cvf "$s" "$@"
+elif [[ "$s" =~ \.zip$ ]]; then
+  echo "Creating $s with zip"
+  zip -9r "$s" "$@"
+elif [[ "$s" =~ \.(7z)$ ]]; then
+  echo "Creating $s with 7z"
+  7z a "$s" "$@"
+else
+  echo "Unrecognised extension $s"
+fi

@@ -1,0 +1,17 @@
+#!/bin/bash
+
+if [ -z "$1" ]; then
+  tmux
+else
+  S="$1"
+  shift
+  if [[ $S =~ : ]]; then
+    echo "Session names cannot contain :"
+    exit 2
+  fi
+  if tmux list-sessions | cut -f1 -d: | grep -q "^$S\$"; then
+    echo "Session $S already exists"
+    exec tmx "$S"
+  fi
+  tmux new -s "$S" "$@"
+fi

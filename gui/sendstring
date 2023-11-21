@@ -1,0 +1,6 @@
+#!/bin/bash
+
+A="$(xwininfo | grep "Window id:" | head -n1 | sed -e "s/^.*Window id: //" | cut -f1 -d\ )"
+if [ -n "$A" ]; then
+    xdotool type --window "$A" "$*"
+fi

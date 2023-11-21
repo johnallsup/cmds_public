@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+
+from subprocess import run, PIPE
+import sys
+import json
+import math
+
+def tohms(x):
+  d,h,m,s = (x//(24*3600),(x//3600)%24,(x//60)%60,x%60)
+  t = ""
+  if d > 0:
+    t += f"{d}d"
+  if h > 0:
+    t += f"{h}h"
+  if m > 0:
+    t += f"{m}m"
+  if s > 0:
+    t += f"{s}s"
+  if t == "":
+    t = "0s"
+  return t
+
+def main():
+  total = 0
+  for f in sys.argv[1:]:
+    # print(f"# Examining {f}")
+    sys.stdout.flush()
+    m = run(["ffprobe","-print_format","json","-show_format",f],stdout=PIPE,stderr=PIPE)
+    d = json.loads(m.stdout.decode())
+    try:
+      dur = float(d["format"]["duration"]) # float number of seconds
+    except Exception:
+      print(f"# Fail {f}")
+      sys.stdout.flush()
+      continue
+    total += dur
+    secs = math.ceil(dur)  
+    hms = tohms(secs)
+    print(f"{f}: {secs} {hms}")
+    sys.stdout.flush()
+  if len(sys.argv[1:]) > 1:
+    tsecs = math.ceil(total)
+    thms = tohms(tsecs)
+    print(f"Total: {tsecs} {thms}")
+
+if __name__ == "__main__":
+  main()

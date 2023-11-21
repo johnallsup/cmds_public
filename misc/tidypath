@@ -1,0 +1,43 @@
+#!/usr/bin/perl
+
+use Cwd 'abs_path';
+
+@p = ();
+%p = ();
+$conf = 1;
+
+for(@ARGV) {
+  if( /^-f$/ ) {
+    # force inclusion of non-existent paths
+    $conf = 0;
+    next;
+  }
+  if( /^-p$/ ) {
+    # splice in current PATH
+    @a = split ":", $ENV{'PATH'};
+    for $a(@a) {
+      # force absolute paths (unless -f is active and a path does not exist
+      if( -d "$a" ) { $a = abs_path($a); } elsif( $conf ) { next; }
+
+      if( ! $p{$a} ) {
+        push @p, $a;
+        $p{$a} = 1;
+      }
+    }
+    next
+  } 
+  @a = split ":";
+  for $a(@a) {
+    # force absolute paths (unless -f is active and a path does not exist
+    if( -d "$a" ) { $a = abs_path($a); } elsif( $conf ) { next; }
+
+    # add it if not already present
+    if( ! $p{$a} ) {
+      push @p, $a;
+      $p{$a} = 1;
+    }
+  }
+}
+
+$path = join ":", @p;
+print "$path\n";

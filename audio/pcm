@@ -1,0 +1,3 @@
+#!/bin/bash
+
+play -t raw -r 48k -b 32 -e float "$1"

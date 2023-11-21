@@ -1,0 +1,7 @@
+if [ -d "$HOME/.deno" ]; then
+  export DENO_INSTALL="$HOME/.deno"
+  pathif -p "$DENO_INSTALL/bin"
+else
+  echo "Deno is not installed in $HOME/.deno"
+fi
+

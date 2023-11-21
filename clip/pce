@@ -1,0 +1,5 @@
+#!/bin/bash
+# intended use is
+# pce *.c
+# will copy a list of .c filenames to the clipboard
+echo "$@" | pc

@@ -1,0 +1,14 @@
+#!/bin/bash
+# Wake, sleep, and ssh -- signal by launching an app specified in the SIG environment variable
+H="$1"
+SIG="${SIG-sig}"
+if [ -z "$H" ]; then
+  echo "$0 <hostname> [<wait time=120>]"
+  echo "Use env variable SIG to set command to fire when wait is over. By default 'sig'."
+  exit 1
+fi
+T="${2-120}"
+shift
+shift
+wakey "$H"
+sleepy "$T" && { "$SIG" $SIGARGS >& /dev/null & ssh "$H" "$@" ; }

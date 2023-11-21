@@ -1,0 +1,15 @@
+#!/bin/bash
+# This is Forth's famous colon
+# Each arg is a command with parameters as a literal string
+# e.g.
+# $ d hello 'echo hello world' 'echo fluffy bunny' 'echo "$0"'
+A="$1" ; shift
+if [ -e "$A" ]; then echo "$A already exists."; exit 1; fi
+echo '#!/bin/bash' > "$A" || exit 2
+I=11
+while [ -n "$1" ]; do
+echo "$1" >> "$A" || exit $((I))
+shift
+((I++))
+done
+cx "$A"

@@ -1,0 +1,112 @@
+#!/usr/bin/env python3
+
+import sys, os
+from datetime import datetime
+from time import sleep
+
+
+args = sys.argv[1:]
+
+if len(args) < 1 or len(args) > 2:
+  print("""sleepuntil time
+where time has format 12:34""")
+  exit(1)
+
+def parse_time(x):
+  a = x.split(":")
+  if len(a) < 2 or len(a) > 3:
+    raise ValueError("Time should be in the format hh:mm or hh:mm:ss")
+  if len(a) == 2:
+    h,m = map(int,a)
+    s = 0
+  else:
+    h,m,s = map(int,a)
+  return (h,m,s)
+
+def format_secs(x):
+  s = x % 60
+  x //= 60
+  m = x % 60
+  x //= 60
+  if m > 0 or x > 0:
+    a = f"{s:02d}"
+  else:
+    return f"{s}"
+  if x > 0:
+    a = f"{x}:{m:02d}:{a}"
+  else:
+    a = f"{m}:{a}"
+  return a
+
+def compute_secs_until(x):
+  h,m,s = parse_time(x)
+  now = datetime.now()
+  h1 = now.hour
+  m1 = now.minute
+  s1 = now.second
+  secs = 3600*h+60*m+s
+  secs1 = 3600*h1+60*m1+s1
+  dt = secs - secs1
+  if dt < 0:
+    dt += 24*3600
+  return dt
+
+def do_sleep():
+  secs = compute_secs_until(args[0])
+  if len(args) > 1:
+    days = int(args[1])
+    secs += 24*3600*days
+  d = secs // (24*3600)
+  h = (secs % (24*3600)) // 3600
+  m = (secs % 3600) // 60
+  s = (secs % 60)
+  hms = []
+  if d > 0:
+    hms.append(f"{d} day")
+    if d != 1:
+      hms[-1] += "s"
+  if h > 0:
+    hms.append(f"{h} hour")
+    if h != 1:
+      hms[-1] += "s"
+  if m > 0:
+    hms.append(f"{m} minute")
+    if m != 1:
+      hms[-1] += "s"
+  if s > 0:
+    hms.append(f"{s} second")
+    if s != 1:
+      hms[-1] += "s"
+  if len(hms) == 0:
+    t = "0 seconds"
+  elif len(hms) == 1:
+    t = hms[0]
+  else:
+    hms1 = hms[:-1]
+    hms2 = hms[-1]
+    t = f"{', '.join(hms1)} and {hms2}"
+  try:
+    print(f"Sleeping {secs} seconds == {t}")
+    now = int(datetime.now().timestamp())
+    target_time_s = now + secs
+    while now < target_time_s:
+      cols = os.get_terminal_size().columns
+      now = int(datetime.now().timestamp())
+      time_rem = target_time_s - now
+      if time_rem <= 0:
+        break
+      tr = "Time remaining: "
+      a = f"{format_secs(time_rem)} == {time_rem} seconds"
+      trf = f"[ {a} ]"
+      ostr = f"{trf:=^{cols}}"
+      print(f"\r{ostr}",end="")
+      sleep(1)
+    print()
+  except KeyboardInterrupt:
+    print()
+    print("\nKeyboard Interrupt\n")
+    exit(1)
+
+if __name__ == "__main__":
+  do_sleep()
+  

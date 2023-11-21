@@ -1,0 +1,4 @@
+dryrun() {
+  export DRYRUN="${1-y}"
+  echo "DRYRUN=$DRYRUN"
+}

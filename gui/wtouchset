@@ -1,0 +1,10 @@
+#!/bin/bash
+
+A="$1"
+xinput | grep "Wacom .*Finger touch" | sed -e "s/.*Wacom/Wacom/" -e "s/touch.*$/touch/" | while read s; do
+    echo "Found $s"
+    if [ -n "$A" ]; then
+        echo Executing: xsetwacom --set "\"$s\"" Touch "$A"
+        xsetwacom --set "$s" Touch "$A"
+    fi
+done

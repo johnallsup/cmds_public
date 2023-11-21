@@ -1,0 +1,18 @@
+#!/bin/bash
+_newhtml_completions()
+{
+  COMPREPLY=()
+  local CURWORD="${COMP_WORDS[COMP_CWORD]}"
+  local WORDS=()
+  while read -r line
+  do
+    WORDS+=("$line")
+  done < <(newhtml -l)
+  #echo "\n\nCURWORD=$CURWORD\nCWORD=$COMP_CWORD\nWORDS=${WORDS[@]}\n\n"
+  if ((COMP_CWORD == 1)); then
+    COMPREPLY=($(compgen -W "${WORDS[*]}" -- "$CURWORD"))
+  else
+    COMPREPLY=()
+  fi
+}
+complete -F _newhtml_completions newhtml

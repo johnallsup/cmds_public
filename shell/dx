@@ -1,0 +1,12 @@
+#!/bin/bash
+# evals each line of a file until one command returns nonzero
+
+A=()
+if [ -f "$1" ]; then
+	while read s; do
+    A+=("$s")
+  done
+fi < "$1"
+for s in "${A[@]}"; do
+    eval $s || break
+done

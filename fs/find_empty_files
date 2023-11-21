@@ -1,0 +1,4 @@
+#!/bin/bash
+A="$1"
+shift
+find "$A" -size 0 "$@"

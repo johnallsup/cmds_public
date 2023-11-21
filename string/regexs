@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+usage = """regex <search> <replace> # processes input via stdin"""
+import re
+import sys
+args = sys.argv[1:]
+try:
+  search, replace = args
+except ValueError:
+  print(usage,file=sys.stderr)
+  exit(1)
+r = re.compile(search)
+for x in sys.stdin.readlines():
+  x = x.rstrip("\r\n")
+  if m := r.search(x):
+    g = m.group()
+    print(r.sub(replace,g))

@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+
+import sys,os
+import uuid,os.path
+
+args = sys.argv[1:]
+
+overwrite = False
+if os.getenv("OVERWRITE") in ["y","Y"]:
+  overwrite = True
+
+forreal = True
+if os.getenv("DRYRUN") is not None and os.getenv("DRYRUN") not in ["n","N"]:
+    forreal = False
+elif os.getenv("D") is not None and os.getenv("D") not in ["n","N"]:
+    forreal = False
+
+if len(args) < 2:
+    print("filesrd chars_to_delete <files>")
+    sys.exit(1)
+
+chars_to_delete = args[0]
+files = args[1:]
+print(f"""filesr
+      chars_to_delete: {chars_to_delete}""")
+
+def rn(x,y):
+    if forreal:
+      if os.path.exists(y):
+        print(f"{y} exists")
+        if overwrite:
+          try:
+            print(f"Overwritten {y}")
+            os.rename(x,y)
+          except IsADirectoryError:
+            print(f"{y} is a directory")
+      else:
+        os.rename(x,y)
+
+while True:
+    t = str(uuid.uuid4())
+    if not os.path.exists(t):
+        break
+print("Temp name {}".format(t))
+
+for x in files:
+    y = x
+    for c in chars_to_delete:
+      y = y.replace(c,"")
+    if x == y:
+        pass
+    elif os.path.exists(y):
+        print("{} already exists".format(y))
+    else:
+        xa = x.lower()
+        ya = y.lower()
+        if xa == ya:
+            print("Capitalisation issue")
+            print(f"Using temp name {t}: {x} --> {y}")
+            rn(x,t)
+            rn(t,y)
+        else:
+            print(f"Rename {x} --> {y}")
+            rn(x,y)
+

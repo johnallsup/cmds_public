@@ -1,0 +1,5 @@
+#!/bin/bash
+[ -d "$JSTORE" ] || JSTORE="$HOME/.jstor"
+[ ! -d "$JSTORE" ] && { echo "No jstor"; exit 1; }
+cd "$JSTORE"
+ls "$@"

@@ -1,0 +1,14 @@
+#!/bin/bash
+T="$1"
+S="$2"
+if [ -e "$S" ]; then
+  if [ -L "$T" ]; then
+    rm -f "$T" && ln -s "$S" "$T"
+  elif [ ! -e "$T" ]; then
+    ln -s "$S" "$T"
+  else
+    echo "Target $T exists and is not a symbolic link"
+  fi
+else
+  echo "Source file $S does not exist"
+fi 

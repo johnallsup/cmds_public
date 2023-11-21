@@ -1,0 +1,22 @@
+export MY_STUFF_PATH="$HOME/bin/my_stuff.d"
+if [ -f "$HOME/bin/my_stuff" ]; then
+  . "$HOME/bin/my_stuff"
+elif [ -d "$HOME/bin/my_stuff.d" ]; then
+  for s in "$HOME/bin/my_stuff.d/"*.stuff; do
+    [ -f "$s" ] && . "$s"
+  done
+fi
+.mstuff() { 
+  if [ ! -d "$MY_STUFF_PATH" ]; then
+    echo "No my_stuff in $MY_STUFF_PATH"
+    return 1
+  fi
+  if [ $# = 0 ]; then
+    ( cd "$MY_STUFF_PATH"; ls *.stuff | cut -f1 -d.; )
+  else
+    for s; do 
+      [ -e "$MY_STUFF_PATH/$s".stuff ] && . "$MY_STUFF_PATH/$s".stuff; 
+    done; 
+  fi
+}
+alias .ms=.mstuff

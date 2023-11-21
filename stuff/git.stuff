@@ -1,0 +1,19 @@
+gcl() {
+  git clone "$(pp)"
+}
+.pullcmds() {
+  (
+    cd /usr/jda/cmds
+    git pull && ./install.sh
+  )
+}
+.pushcmds() {
+  (
+    cd /usr/jda/cmds
+    if [ -n "$(git status --porcelain)" ]; then
+      git add .
+      git commit -m "Updated as of $(today _)"
+      git push
+    fi
+  )
+}

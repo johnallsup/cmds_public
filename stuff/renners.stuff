@@ -1,0 +1,24 @@
+echo "hash_rename <files> -- STEM=x to set stem, *.* unless files specified"
+hash_rename() {
+  local D
+  if [ -z "$STEM" ]; then
+    D="$(basename "$(readlink -f "$PWD")")"
+  else
+    D="$STEM"
+  fi
+  local E
+  if [ $# = 0 ]; then
+    if exists *.*; then
+      hash_rename *.*
+      return $?
+    fi
+  else
+    for s; do
+      E="${s##*.}"
+      ofn="${D}_$(sha256sum "$s" | cut -c1-12).${E}"
+      if [ ! "$s" = "$ofn" ]; then
+        mv -vn "$s" "$ofn"
+      fi
+    done
+  fi
+}

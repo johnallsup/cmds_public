@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+import sys
+args = sys.argv[1:]
+try:
+  delim = args[0]
+  fields = list(map(int,args[1:]))
+except IndexError:
+  print(f"{sys.argv[0]} delimiter field1 field2 ...")
+import re
+r = re.compile(delim)
+for line in sys.stdin.readlines():
+  line = line.rstrip()
+  xs = r.split(line)
+  try:
+    ys = list(map(lambda t: xs[t],fields))
+  except IndexError:
+    print(f"# not enough fields in: {line}")
+  print(" ".join(ys))

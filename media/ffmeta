@@ -1,0 +1,4 @@
+#!/bin/bash
+for s; do
+  ffp "$s" | awk 'BEGIN { x = 0; } /^  Metadata:/ { x = 1; } /^  Duration:/ { x = 0; } { if(x == 1) { print; } }'
+done

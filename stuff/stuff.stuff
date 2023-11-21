@@ -1,0 +1,62 @@
+.vis() { 
+  (
+    A=()
+    for s; do A+=("$s".stuff); done
+    cd /usr/jda/stuff
+    vi "${A[@]}"
+  )
+}
+.vms() { 
+  (
+    cd "$MY_STUFF_PATH" || { echo "No my stuff at $MY_STUFF_PATH"; return 1; }
+    A=()
+    for s; do A+=("$s".stuff); done
+    cd "$MY_STUFF_PATH"
+    vi "${A[@]}"
+  )
+}
+_vis_completions()
+{
+  COMPREPLY=()
+  #echo
+  #echo "COMP_WORDS=" "${COMP_WORDS[@]}"
+  #echo "COMP_CWORD=" "${COMP_CWORD}"
+  #echo "COMP_LINE=" "${COMP_LINE}"
+  local CURWORD="${COMP_WORDS[COMP_CWORD]}"
+  local WORDS=()
+  while read -r line
+  do
+    WORDS+=("$line")
+  done < <(cd /usr/jda/stuff; ls *.stuff | cut -f1 -d.)
+  COMPREPLY=($(compgen -W "${WORDS[*]}" -- "$CURWORD"))
+}
+complete -F _vis_completions .vis
+
+.cds() {
+  cd /usr/jda/cmds/"$1"
+}
+_cds_completions()
+{
+  COMPREPLY=()
+  local CURWORD="${COMP_WORDS[COMP_CWORD]}"
+  local WORDS=()
+  WORDS=($(cd /usr/jda/cmds; ls -d */))
+  COMPREPLY=($(compgen -W "${WORDS[*]}" -- "$CURWORD"))
+}
+complete -F _cds_completions .cds
+
+# Stuff is defined in bash_common for chicken and
+# egg reasons.
+_stuff_completions()
+{
+  COMPREPLY=()
+  local CURWORD="${COMP_WORDS[COMP_CWORD]}"
+  local WORDS=()
+  while read -r line
+  do
+    WORDS+=("$line")
+  done < <(cd /usr/jda/stuff; ls *.stuff | cut -f1 -d.)
+  COMPREPLY=($(compgen -W "${WORDS[*]}" -- "$CURWORD"))
+}
+complete -F _stuff_completions .stuff
+complete -F _stuff_completions .s

@@ -1,0 +1,9 @@
+get # get from named store
+put # put into name store
+sls # list named stores
+
+pc # copy to clipboard
+pcs # copy from named store into clipboard
+pp # paste from clipboard
+pps # paste from clipboard into named store
+storels # 

@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+import sys
+import os
+from glob import glob
+
+# Todo -- allow templates to be directories
+# Separate command -- newf takes parameters and runs a python script
+templates_dir = os.path.expanduser("~/Templates/")
+ext = os.getenv("NEW_EXT","")
+exe = os.getenv("NEW_EXE",sys.argv[0])
+if len(ext) > 0:
+  templates_dir += ext
+  #print(f"{templates_dir=}")
+def remove_ext(x):
+  if len(ext) > 0 and x.endswith("."+ext):
+    x = x[:-len(ext)-1]
+  return x
+
+args = sys.argv[1:]
+templates = [remove_ext(x) for x in glob(os.path.join(templates_dir,f"*.{ext}"))]
+templates = [x[len(templates_dir)+1:] for x in templates]
+try:
+  source, *targets = args
+  if source[0] == "-":
+    if source == "-d":
+      print(f"{templates_dir=}")
+    if source == "-l":
+      print("\n".join(templates))
+      exit(0)
+    print(f"Unknown switch {source}",file=sys.stderr)
+    raise Exception("")
+except Exception:
+  print(f"{exe} <template> [file1 file2...]",file=sys.stderr)
+  exit(1)
+
+try:
+  template_fn = os.path.join(templates_dir,source) + "." + ext
+  template = open(template_fn).read()
+  # TODO do recursive copy if template is a folder
+  # TODO allow the template to be manipulated
+except FileNotFoundError:
+  print(f"No such template '{source}'")
+  print(f"Available {ext} templates: {' '.join(templates)}")
+  exit(2)
+except Exception:
+  print(f"Failed to load template {source} from {template_fn}")
+  print(f"Available {ext} templates: {' '.join(templates)}")
+  exit(2)
+
+if len(targets) > 0:
+  for target in targets:
+    try:
+      if os.path.exists(target):
+        print(f"Target {target} already exists")
+        continue
+      with open(target,"wt") as f:
+        f.write(template)
+        print(f"Written {target}")
+    except Exception as e:
+      print(f"Failed to write {target}: Exception {e}")
+else:
+  sys.stdout.write(template)

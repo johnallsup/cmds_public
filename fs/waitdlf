@@ -1,0 +1,2 @@
+#!/bin/bash
+while exists ~/dl/*.part; do ls ~/dl/*.part; date; echo; sleep 1; done

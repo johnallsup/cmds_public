@@ -1,0 +1,14 @@
+#!/bin/bash
+for s; do
+  if [ ! -e "$s" ]; then
+    echo "$s does not exist, skipping"
+    continue
+  fi
+  if [[ "$s" =~ \.tar\. ]] || [[ "$s" =~ \.tar$ ]]; then
+    tar tf "$s"
+  elif [[ "$s" =~ \.zip$ ]]; then
+    zip -v "$s"
+  elif [[ "$s" =~ \.(7z|rar)$ ]]; then
+    7z l "$s"
+  fi
+done

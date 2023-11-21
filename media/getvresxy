@@ -1,0 +1,22 @@
+#!/usr/bin/perl
+
+@s = ();
+%f = ();
+$total = 0;
+for $file(@ARGV) {
+  open(PIPE,"ffprobe '$file' 2>&1 |");
+  @a = <PIPE>;
+  close PIPE;
+  for(@a) {
+    if(/Video:.*\s(\d{2,})x(\d+)[^\d]/) {
+        $w = "$1";
+        $h = "$2";
+        if( scalar(@ARGV) > 1 ) {
+          print "$file: ${w}x${h}\n";
+        } else {
+          print "${w}x${h}\n";
+        }
+        last;
+    }
+  }
+}

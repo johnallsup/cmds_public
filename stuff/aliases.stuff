@@ -1,0 +1,54 @@
+alias n='nvim'
+vicfg() { cd ~/.config/nvim; vi .; }
+
+# Make cp rm mv save by default
+alias remove=/bin/rm
+rm() {
+  echo "To delete for real, use"
+  echo "remove $*"
+}
+
+export SAFECPMV=y
+safecpmv() { export SAFECPMV=y; }
+unsafecpmv() { export SAFECPMV=n; }
+alias cpx='/bin/cp'
+alias mvx='/bin/mv'
+cp() {
+  if [ "$SAFECPMV" = "y" ]; then
+    /bin/cp -vn "$@"
+  else
+    /bin/cp "$@"
+  fi
+}
+mv() {
+  if [ "$SAFECPMV" = "y" ]; then
+    /bin/mv -vn "$@"
+  else
+    /bin/mv "$@"
+  fi
+}
+
+# What do these do?
+# Ensure that the target has the same extension as the source
+# cpe image.png flibble
+# is equivalent to
+# cp image.png flibble.png
+# idem for mve
+cpe() { local a="$1"; local e="${a##*.}"; local b="$2"; local t="${b%.${e}}.$e"; cp "$a" "$t"; }
+mve() { local a="$1"; local e="${a##*.}"; local b="$2"; local t="${b%.${e}}.$e"; mv "$a" "$t"; }
+cpxe() { local a="$1"; local e="${a##*.}"; local b="$2"; local t="${b%.${e}}.$e"; cpx "$a" "$t"; }
+mvxe() { local a="$1"; local e="${a##*.}"; local b="$2"; local t="${b%.${e}}.$e"; mvx "$a" "$t"; }
+
+alias o.='o .'
+
+disp() {
+  if [ -n "$1" ]; then
+    export DISPLAY="$1"
+  fi
+  if [ -n "$DISPLAY" ]; then
+    echo "$DISPLAY"
+  else
+    echo "No DISPLAY set"
+  fi
+}
+

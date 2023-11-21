@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+usage = """regex <search> <replace> <lines...>"""
+import re
+import sys
+args = sys.argv[1:]
+try:
+  search, replace, *lines = args
+  if len(lines) == 0:
+    raise Exception()
+except Exception:
+  print(usage,file=sys.stderr)
+  exit(1)
+r = re.compile(search)
+for x in lines:
+  s = r.sub(replace,x)
+  print(s)

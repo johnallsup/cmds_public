@@ -1,0 +1,4 @@
+#!/bin/bash
+while read s; do
+if $@ "$s" ; then echo $s; fi
+done

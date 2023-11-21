@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+import re
+import os
+import sys
+import argparse
+import socket
+
+from pythonosc import udp_client
+
+default_port = 5005
+host = os.getenv("PHOST",os.getenv("HOST","localhost"))
+port = os.getenv("PPORT",os.getenv("PORT",default_port))
+try:
+  port = int(port)
+except ValueError:
+  print(f"Invalid PORT variable, defaulting to {default_port}")
+  port = default_port
+
+def parse_arg(x):
+  for t in [int,float]:
+    try:
+      return t(x)
+    except ValueError:
+      pass
+  return x
+
+if __name__ == "__main__":
+  parser = argparse.ArgumentParser(add_help=False)
+  parser.add_argument("-h","--ip", default=host,
+      help="The ip of the OSC server")
+  parser.add_argument("-p","--port", type=int, default=port,
+      help="The port the OSC server is listening on")
+  parser.add_argument("--help", action="help", help="show this help message and exit")
+  parser.add_argument("msg", nargs='+', help='OSC message')
+  args, other = parser.parse_known_args()
+
+  # we need only send empty messages
+  client = udp_client.SimpleUDPClient(args.ip, args.port, family=socket.AF_INET)
+
+  msg = args.msg
+  for x in msg:
+    xs = re.split(r"\s+",x.strip())
+    addr = "/"+xs[0].lstrip("/")
+    ys = [parse_arg(y) for y in xs[1:]]
+    print(f"Sending {addr} {ys} to {args.ip}:{args.port}")
+    client.send_message(addr, ys)
+

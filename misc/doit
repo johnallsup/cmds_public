@@ -1,0 +1,9 @@
+#!/bin/bash
+if [[ "$DRYRUN" =~ ^(Y|y|Yes|yes|True|true)$ ]]; then
+  echo "$@"
+  exit $?
+fi
+if [[ "$VERBOSE" =~ ^(Y|y|Yes|yes|True|true)$ ]]; then
+  echo "$@"
+fi
+"$@"

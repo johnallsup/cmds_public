@@ -1,0 +1,76 @@
+#!/usr/bin/perl
+
+use POSIX qw(round);
+
+sub simpfrac {
+    # euclid algorithm
+    my ($w,$h) = @_;
+    my ($a,$b) = @_;
+    my ($r,$t,$g);
+    while(1) {
+        if( $a > $b ) { $t = $a; $a = $b; $b = $t; }
+        # so $a <= $b
+        $r = $b % $a;
+        if( $r == 0 ) { $g = $a; last; }
+        $b = $r;
+    }
+    return ($w/$g,$h/$g);
+}
+
+sub apxratio {
+    # divide w / h, then multiply by 1, 2, 3, ... until within epsilon of int
+    my ($e,$w,$h) = @_;
+    my $r = (1.0*$w)/$h;
+    my ($x,$y,$d);
+    my $i;
+    for($i=1;$i < $h;$i++) {
+        $x = $r * $i;
+        $y = round($x);
+        $d = abs($y - $x);
+        if( $d < $e ) {
+            return $y,$i;
+        }
+    }
+    return ($w,$h);
+}
+
+# quick test
+#print "simp\n";
+#print "".(join("/",&simpfrac(1920,1080)))."\n";
+#print "".(join("/",&simpfrac(640,480)))."\n";
+#print "".(join("/",&simpfrac(1600,1200)))."\n";
+#print "".(join("/",&simpfrac(1366,768)))."\n";
+#print "apx\n";
+#print "".(join("/",&apxratio(0.08,1923,1080)))."\n";
+#print "".(join("/",&apxratio(0.08,635,480)))."\n";
+#print "".(join("/",&apxratio(0.08,645,475)))."\n";
+#
+#exit 0;
+
+@t = ();
+if(int(@ARGV)==1) { $many = 0; } else { $many = 1; }
+for $file(@ARGV) {
+    open(PIPE,"ffprobe '$file' 2>&1 |");
+    @a = <PIPE>;
+    close PIPE;
+    $x = "";
+    my (@x,@y,@z,$r,$s,$t);
+    for(@a) {
+        if(/\s(\d{2,}x\d+)[^\d]/) {
+            $x = "$1";
+            @x = split "x", $x;
+            @y = &simpfrac(@x);
+            @z = &apxratio("0.08", @x);
+            $r = join("/",@y);
+            $s = join("/",@z);
+            if( $r ne $s ) { 
+            $o = "$r ~= $s";
+            } else {
+            $o = $r;
+            }
+            if($many) { print "$file: $o\n"; }
+            else { print "$o\n"; }
+            last; # exit loop iterating over output of ffprobe
+        }
+    }
+}

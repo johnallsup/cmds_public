@@ -1,0 +1,10 @@
+enable_nvim() {
+  vi() { nvim "$@"; }
+}
+disable_nvim() {
+  vi() { vim "$@"; }
+}
+nvim() {
+  local N="$(cygpath "C:\\tools\\neovim\\nvim-win64\\bin\\nvim")"
+  "$N" "$@"
+}

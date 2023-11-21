@@ -1,0 +1,110 @@
+#!/usr/bin/python
+from subprocess import run, Popen, PIPE
+import sys
+import os
+import time
+import tempfile
+import platform
+
+if platform.system() == "Darwin":
+  telnet = "gtelnet"
+else:
+  telnet = "telnet"
+
+a = r"""set timeout 5
+
+set host "[lindex $argv 0]"
+set tport "[lindex $argv 1]"
+puts "tport '$tport'"
+if { $tport == "" } {
+  set tport 0
+}
+set port "[expr 7000 + $tport]"
+set password "tree"
+
+spawn TELNET $host $port
+expect {
+  timeout { puts "timeout pw" ; exit 1 }
+  "Password:"
+}
+send "$password\r"
+
+expect {
+  timeout { puts "timeout welcome" ; exit 1 }
+  "Welcome, Master"
+}
+
+expect {
+  timeout { puts "timeout prompt" ; exit 1 }
+  "> "
+}
+
+""".replace("TELNET",telnet)
+b="""
+expect {
+  timeout { puts "timeout prompt" ; exit 1 }
+  "> "
+}
+"""
+
+d = {
+  ".": "localhost",
+  "lh": "localhost",
+  "l": "l440a",
+  "f": "frodo2",
+  "f2": "frodo2",
+  "f3": "frodo3"
+}
+
+args = sys.argv[1:]
+try:
+  if len(args) == 1:
+    host = os.getenv('vlc_host',os.getenv('host','localhost'))
+    port = int(os.getenv('rp',os.getenv('port',0)))
+  elif len(args) == 2:  
+    host = os.getenv('vlc_host',os.getenv('host','localhost'))
+    port, *args = args
+  elif len(args) == 0:
+    raise ValueError()
+  else:
+    host, port, *args = args
+except ValueError:
+  print(f"{sys.argv[0]} <host> <rport> [<cmds>...]")
+  for k,v in d.items():
+    print(f"  {k} => {v}")
+  exit(1)
+
+if host in d:
+  host = d[host]
+
+argm = """
+p play
+pa pause
+pl play
+pls playlist
+s status
+""".strip()
+argd = { # shorthands
+  k:v for k,v in [x.split(" ",1) for x in argm.splitlines()]
+}
+def sh(x):
+  y=x
+  if x[0] == 'v' and x[1:].isnumeric():
+    x = 'volume '+x[1:]
+  elif x[:3] == 'vol' and x[3:].isnumeric():
+    x = 'volume '+x[3:]
+  elif x[:2] == "vx" and x[2:].isnumeric():
+    a = int(x[2:])*(2550/100.0)
+    a = int(a)
+    x = f'volume {a}'
+  elif x[0] == 'g' and x[1:].strip().isnumeric():
+    x = 'goto '+x[1:].strip()
+  elif x in argd:
+    x = argd[x]
+  print(f"{y} => {x}")
+  return x
+args = [sh(arg.replace('"','\"')) for arg in args]
+args = [(f"send \"{arg}\\r\"\n"+b if not arg.startswith("sleep ") else arg) for arg in args]
+scr="\n".join([a]+args+['puts ""'])
+with Popen(["expect","-f","-",host,str(port)],stdin=PIPE) as proc:
+  proc.communicate(input=scr.encode())

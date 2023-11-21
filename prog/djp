@@ -1,0 +1,3 @@
+#!/bin/bash
+A="$1";shift
+dp "/usr/jda/bin/$A" "$@"

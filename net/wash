@@ -1,0 +1,12 @@
+#!/bin/bash
+# Wake, sleep and ssh
+H="$1"
+if [ -z "$H" ]; then
+  echo "$0 <hostname> [<wait time=120>]"
+  exit 1
+fi
+T="${2-120}"
+shift
+shift
+wakey "$H"
+sleepy "$T" && ssh "$H" "$@"

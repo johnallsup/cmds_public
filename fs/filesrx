@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+
+import sys,os,re
+import uuid,os.path
+from filesr_common import Renamer
+
+args = sys.argv[1:]
+
+overwrite = False
+verbose = False
+if os.getenv("OVERWRITE") in ["y","Y"]:
+  overwrite = True
+if os.getenv("VERBOSE") in ["y","Y"]:
+  verbose = True
+
+forreal = True
+if os.getenv("DRYRUN") is not None and os.getenv("DRYRUN") not in ["n","N"]:
+    forreal = False
+elif os.getenv("D") is not None and os.getenv("D") not in ["n","N"]:
+    forreal = False
+
+if len(args) < 3:
+    print("filesrx searchpat replpat <files>")
+    print("  searchpad is regex")
+    if len(args) == 2:
+      print("(did you forget to specify files)")
+    sys.exit(1)
+
+s,r = tuple(args[:2])
+filenames = args[2:]
+print(f"""filesrx
+       regex: {s}
+replace with: {r}""")
+
+renner = Renamer(forreal=forreal,overwrite=overwrite,verbose=verbose)
+renner.srx(s,r)
+renner.process(filenames)

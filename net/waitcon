@@ -1,0 +1,33 @@
+#!/usr/bin/env python3
+
+import socket
+import sys
+import time
+from datetime import datetime
+
+try:
+  host,port = sys.argv[1:]
+  port = int(port)
+except Exception:
+  print(f"{sys.argv[0]} <host> <port>")
+  exit(1)
+
+def printnow():
+  now = datetime.now()
+  print(now.strftime("%c"))
+
+try:
+  while True:
+    with socket.socket(socket.AF_INET,socket.SOCK_STREAM) as s:
+      s.settimeout(1)
+      try:
+        s.connect((host,port))
+        s.close()
+        exit(0)
+      except (OSError,TimeoutError,ConnectionRefusedError) as e:
+        printnow()
+        time.sleep(1)
+except KeyboardInterrupt:
+  print("Ctrl-c")
+  exit(0)
+

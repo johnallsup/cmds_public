@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+from setproctitle import setproctitle
+setproctitle("kde-wallpaper-changer")
+from subprocess import run, PIPE
+from time import sleep
+import sys
+import signal
+
+def donext(*xs,**kw):
+  return run(["kde-next-wallpaper"])
+def dohup(*xs,**kw):
+  print("HUP")
+  return donext()
+signal.signal(signal.SIGHUP,dohup)
+
+args = sys.argv[1:]
+try:
+  t = int(args[0])
+  if t < 10: 
+    t = 10
+except:
+  t = 60
+
+i = 0
+try:
+  while True:
+    donext()
+    print(i := i + 1)
+    sleep(t)
+except KeyboardInterrupt:
+  print("Ctrl-C")
+  exit()

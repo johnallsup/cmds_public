@@ -1,0 +1,82 @@
+#!/usr/bin/env python
+from subprocess import run, PIPE, DEVNULL
+from PIL import Image
+from glob import glob
+from icecream import ic; ic.configureOutput(includeContext=True)
+import sys
+import json
+import math
+
+def main():
+  args = sys.argv[1:]
+  try:
+    wavfn, imgfn, ofn, *xs = args
+    if len(xs) == 2:
+      output_w, output_h = map(int,xs)
+    else:
+      output_w, output_h = 1920, 1080
+  except Exception:
+    print(f"{sys.argv[0]} wavfn imgfn ofn [output_w output_h]")
+    exit(1)
+  imgfn = fillimg(imgfn,"tmp.png",output_w,output_h)
+  loopfn = mkloop(imgfn)
+  wavdur = getdur(wavfn)
+  nreq = math.ceil(wavdur/60)
+  with open("catlist","wt") as f:
+    for n in range(nreq):
+      print(f"file '{loopfn}'",file=f)
+  run(["ffmpeg","-n","-f","concat","-i","catlist","-i",wavfn,"-b:a","160k","-shortest","-c:v","copy",ofn],stdin=DEVNULL)
+  print(ofn)
+
+def getdur(ifn):
+  m = run(["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format",ifn],stdin=DEVNULL,stdout=PIPE)
+  if m.returncode > 0:
+    print(f"#fail")
+    exit(1)
+  j = m.stdout.decode()
+  d = json.loads(j)
+  dur = float(d["format"]["duration"])
+  return dur
+
+def rrun(x,*xs,**kw):
+  ic(x)
+  exit()
+
+def mkloop(imgfn):
+  loopfn = "loop.mp4"
+  cmd=["ffmpeg", "-y", "-loop", "1", "-i", imgfn, "-t", "60", "-r", "24", "-pix_fmt", "yuv420p", "-vf", "scale=1920:1080", loopfn]
+  run(cmd,stdin=DEVNULL)
+  return loopfn
+
+def fillimg(ifn,ofn,output_w,output_h):
+  im = Image.open(ifn)
+  iw,ih = im.size
+  tw,th = output_w,output_h
+  if tw == iw and th == ih:
+    return ifn
+  ir = iw/ih
+  tr = tw/th
+  if ir > tr:
+    # input is wider when scaled: scale by th/ih
+    sf = th/ih
+    ow = int(iw*sf)
+    oh = int(ih*sf)
+    im2 = im.resize((ow,oh),resample=Image.LANCZOS)
+    w2,h2 = im2.size
+    x2 = (w2-tw)//2
+    im3 = im2.crop((x2,0,tw+x2,th))
+  else:
+    #  input is higher when scaled (or equal), scale by tw/iw
+    sf = tw/iw
+    ow = int(iw*sf)
+    oh = int(ih*sf)
+    ic(sf,ow,oh)
+    im2 = im.resize((ow,oh),resample=Image.LANCZOS)
+    w2,h2 = im2.size
+    y2 = (h2-th)//2
+    im3 = im2.crop((0,y2,tw,th+y2))
+  im3.save(ofn)
+  return ofn
+
+if __name__ == "__main__":
+  main()

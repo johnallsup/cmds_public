@@ -1,0 +1,16 @@
+#!/usr/bin/env python
+from setproctitle import setproctitle # python -m pip install setproctitle
+from subprocess import run
+import sys
+args = sys.argv[1:]
+if len(args) < 2:
+  print(f"Not enough arguments")
+  print(f"{sys.argv[0]} <process name> <command> [<args> ...]")
+  exit(1)
+title = args[0]
+if len(title) > 15:
+  title = title[:15]
+  print(f"Truncating title to '{title}'")
+setproctitle(args[0])
+cmd = args[1:]
+exit(run(cmd).returncode)
